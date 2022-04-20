@@ -3,7 +3,8 @@
             [datascript.core :as d]
             [goog.dom :as gdom]
             [reagent.dom :as dom]
-            [posh.reagent :as p]))
+            [posh.reagent :as p]
+            [react :as r]))
 
 (defn input-value [evt]
   (-> evt .-target .-value))
@@ -100,11 +101,12 @@
 (defn todo-view [conn e]
   (let [{completion  :todo/completion
          view-mode   :todo/view-mode
-         description :todo/description} @(p/pull conn '[*] e)]
-    [:div
+         description :todo/description} @(p/pull conn '[*] e)
+        done? (fsm/matches completion :done)]
+    [:div.Todo {:class (when done? "isDone")}
      [:input {:type     "checkbox"
               :read-only true
-              :checked  (fsm/matches completion :done)
+              :checked  done?
               :on-change #(toggle-todo-completion conn e)}]
 
      (if (fsm/matches view-mode :editing)
@@ -112,6 +114,8 @@
         [:input {:value  (:temp-description view-mode)
                  :on-blur #(save-edit-todo conn e)
                  :on-key-down #(on-key-press-handler conn e %)
+                 :ref #(when %
+                         (.focus %))
                  :on-change #(update-edit-todo conn e (input-value %))}]]
        [:span {:on-click #(edit-todo conn e) } description])]))
 
@@ -119,7 +123,7 @@
 (defn app [conn]
   (let [todos @(p/q '[:find [?id ...]
                       :where [?id :todo/description _]] conn)]
-    [:div
+    [:div.Todos
      [:h1 "Todos"]
      (for [e todos]
        ^{:key e} [todo-view conn e])]))
