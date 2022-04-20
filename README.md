@@ -2,6 +2,9 @@
 
 Experiment with new architecture where all app state is stored in a Datascript DB and state transitions are modeled with Statecharts.
 
+
+# First iteration
+
 ## Architecture
 
 ### Persistence
@@ -57,4 +60,26 @@ App
     LoginIn -> LoggedIn
 ```
 
-I think the best way for now is to model this as a single statechart.
+## Reflection
+
+The decomposition of parallel states is less useful than I hoped. If we take the `:todo/view-mode` as an example
+in the enter action of the `:editing` state we set the temp value to `:todo/description`. This prohibits the reuse
+of `:todo/view-mode` as a generic state for any entity that can be editable. We might solve this problem by introducing
+abstract computed properties that 
+
+There are some subtle problems with invalid state transitions. If we save a todo by pressing enter a save event gets
+triggered this causes a rerender of the view which triggers a blur on the input element because it's removed. The blur
+triggers another save event but we are already in the `:viewing` state so the event triggers a warning that it's invalid.
+
+Conceptually the paradigm of statecharts is nice to reason about but the representation as a clojure map makes it
+sometimes cumbersome because you have to remember exactly the schema of the machine definition. It's easy to make mistakes
+like writing `:action` instead of `:actions`. I think a simpler text syntax like sketch.systems would be nice extended
+with a side panel that allows to add actions etc
+
+<img src="sketches/text-state-editor.png">
+
+There is some friction with the statechart implementation. I don't like that you have to wrap a function with a 
+`fsm/update` function if you want to mutate the context. It's also a bit hacky that I pass in the connection and entity
+id as properties on the event object. I think these issues can be smoothed over by creating my own wrapper functions in
+the right places.
+

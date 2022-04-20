@@ -43,9 +43,9 @@
                 {:edit :editing}}
       :editing {:entry (fsm/assign entry-editing)
                 :on
-                {:save   {:target :viewing
+                {:save   {:target  :viewing
                           :actions (fsm/assign editing-save)}
-                 :cancel {:target :viewing
+                 :cancel {:target  :viewing
                           :actions (fsm/assign editing-cancel)}
                  :update {:actions (fsm/assign editing-update)}}}}}))
 
@@ -104,21 +104,19 @@
          description :todo/description} @(p/pull conn '[*] e)
         done? (fsm/matches completion :done)]
     [:div.Todo {:class (when done? "isDone")}
-     [:input {:type     "checkbox"
-              :read-only true
-              :checked  done?
+     [:input {:type      "checkbox"
+              :checked   done?
               :on-change #(toggle-todo-completion conn e)}]
 
      (if (fsm/matches view-mode :editing)
        [:form {:onSubmit #(on-submit-handler conn e %)}
-        [:input {:value  (:temp-description view-mode)
-                 :on-blur #(save-edit-todo conn e)
+        [:input {:value       (:temp-description view-mode)
+                 :on-blur     #(save-edit-todo conn e)
                  :on-key-down #(on-key-press-handler conn e %)
-                 :ref #(when %
-                         (.focus %))
-                 :on-change #(update-edit-todo conn e (input-value %))}]]
-       [:span {:on-click #(edit-todo conn e) } description])]))
-
+                 :ref         #(when %
+                                 (.focus %))
+                 :on-change   #(update-edit-todo conn e (input-value %))}]]
+       [:span {:on-click #(edit-todo conn e)} description])]))
 
 (defn app [conn]
   (let [todos @(p/q '[:find [?id ...]
