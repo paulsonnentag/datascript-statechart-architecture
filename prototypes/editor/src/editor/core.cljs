@@ -1,10 +1,8 @@
-(ns shadow-eval.core
+(ns editor.core
   (:require
-
-    ;; evaluate
+    [goog.dom :as gdom]
     [cljs.js :as cljs]
     [shadow.cljs.bootstrap.browser :as shadow.bootstrap]
-    ;; view
     [reagent.dom :as dom]))
 
 ;; Set up eval environment
@@ -32,7 +30,7 @@
    [:button {:on-click
              #(eval* "(+ 1 2)"
                      (fn [result]
-                       (print result)))} "eval !!"]])
+                       (print result)))} "eval"]])
 
 (defn app []
   (if-not @eval-ready?
@@ -41,7 +39,7 @@
 
 
 (defn render []
-  (dom/render [app] (js/document.getElementById "shadow-eval")))
+  (dom/render [app] (gdom/getElement "root")))
 
 (defn ^:dev/after-load init []
   (shadow.bootstrap/init c-state
@@ -51,3 +49,5 @@
                             (reset! eval-ready? true)
                             (render)))
   (render))
+
+

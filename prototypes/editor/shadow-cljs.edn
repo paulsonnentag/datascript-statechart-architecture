@@ -1,26 +1,25 @@
-{:deps true
- :nrepl {:port 8703}
- :dev-http {8080 "out/public"}
- :builds {:bootstrap {:target :bootstrap
-                      :output-dir "out/public/js/bootstrap"
-                      :entries [
-                                reagent.core
-                                bootstrap-test.reagent
-                                cljs.js
-                                userland.core
-                                bootstrap-test.macros-2
-                                bootstrap-test.macros-3]
-                      :compiler-options
-                      {:warnings {:infer false}}
+{:source-paths
+ ["src"]
 
-                      ;; many macro namespaces can't be evaluated in ClojureScript -
-                      ;; so we exclude them here to avoid runtime errors. Note that
-                      ;; it's ok to include code that consumes Clojure (jvm) macros,
-                      ;; but only selfhost-compatible macros can be evaluated "live".
-                      :exclude #{cljs.js}}
-          :browser {:target :browser
-                    :output-dir "out/public/js"
-                    :asset-path "/js"
-                    :compiler-options {:optimizations :simple
-                                       :warnings {:infer false}}
-                    :modules {:base {:init-fn shadow-eval.core/init}}}}}
+ :dependencies
+ [[reagent "1.1.1"]]
+ :nrepl    {:port 8703}
+ :dev-http {8080 "public"}
+ :builds   {:bootstrap {:target     :bootstrap
+                        :output-dir "public/js/bootstrap"
+                        :entries    [reagent.core
+                                     cljs.js]
+                        :compiler-options
+                        {:warnings {:infer false}}
+
+                        ;; many macro namespaces can't be evaluated in ClojureScript -
+                        ;; so we exclude them here to avoid runtime errors. Note that
+                        ;; it's ok to include code that consumes Clojure (jvm) macros,
+                        ;; but only selfhost-compatible macros can be evaluated "live".
+                        :exclude    #{cljs.js}}
+            :browser   {:target           :browser
+                        :output-dir       "public/js"
+                        :asset-path       "/js"
+                        :compiler-options {:optimizations :simple
+                                           :warnings      {:infer false}}
+                        :modules          {:base {:init-fn editor.core/init}}}}}

@@ -15,5 +15,4 @@
  :builds
  {:app
   {:target  :browser
-   :modules {:main {:init-fn todo.app/init}}
-   }}}
+   :modules {:main {:init-fn todo.app/init}}}}}
