@@ -1,6 +1,5 @@
 {:source-paths
  ["src"]
-
  :dependencies
  [[reagent "1.1.1"]]
  :nrepl    {:port 8703}
@@ -8,7 +7,8 @@
  :builds   {:bootstrap {:target     :bootstrap
                         :output-dir "public/js/bootstrap"
                         :entries    [reagent.core
-                                     cljs.js]
+                                     cljs.js
+                                     editor.app]
                         :compiler-options
                         {:warnings {:infer false}}
 
