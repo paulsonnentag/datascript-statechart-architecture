@@ -40,6 +40,28 @@
 
 ; event selectors
 
+(defn get-element-path
+  ([element]
+   (get-element-path element []))
+
+  ([^js element child-path]
+   (let [dataset (.-dataset element)
+         view-id (.-viewId dataset)
+         db-id (.-dbId dataset)
+         node (cond-> {}
+                      view-id (assoc :view/id view-id)
+                      db-id (assoc :db/id db-id))
+         root? (= (.-isRoot dataset) "true")]
+     (if root?
+       child-path
+       (get-element-path
+         (.-parentElement element)
+         (if (empty? node)
+           child-path
+           (conj child-path node)))))))
+
+
+
 (def event-handlers (atom []))
 
 (defn state-view []
@@ -66,9 +88,13 @@
              (for [[name state] (seq states)]
                ^{:key name} [state-view conn name state])]]))})))
 
+(defn on-click [evt]
+  (print (get-element-path (.-target evt))))
 
 (defn app [conn]
-  [statechart-view conn 1])
+  [:div {:data-is-root true
+         :on-click on-click}
+   [statechart-view conn 1]])
 
 (defn init []
   (dom/render [app conn] (gdom/getElement "root")))
