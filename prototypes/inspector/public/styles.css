@@ -14,6 +14,7 @@ body {
   border-radius: 5px;
   padding: 8px;
   width: fit-content;
+  user-select: none;
 }
 
 .state.is-selected {
