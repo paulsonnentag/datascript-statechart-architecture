@@ -1,0 +1,13 @@
+{
+  "scripts": {
+    "start": "shadow-cljs watch app"
+  },
+  "private": true,
+  "devDependencies": {
+    "shadow-cljs": "2.18.0"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}

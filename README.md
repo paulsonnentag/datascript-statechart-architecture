@@ -8,6 +8,9 @@ with Statecharts.
 ## Prototypes 
 
 - 📄 [todo example](prototypes/todo-example)
-  - basic todo application build with Datascript and Statecharts
+  - basic todo application build with Datascript and statecharts
 - ⌨️ [editor](prototypes/editor) (WIP)
-  -  basic clojurescript editor with hot swapping
+  - basic clojurescript editor with hot swapping
+- 🧐 [inspector](prototypes/viewer) 
+  - inspect statecharts and views
+  - will eventually be combined with editor

@@ -1,0 +1,31 @@
+html {
+  box-sizing: border-box;
+}
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+
+body {
+  font-family: sans-serif;
+}
+
+.state {
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 8px;
+  width: fit-content;
+}
+
+.state.is-selected {
+  border-color: #0074D9;
+}
+
+.state-name {
+  font-weight: normal;
+  font-size: 16px;
+}
+
+.state-states {
+  display: flex;
+  gap: 8px;
+}
