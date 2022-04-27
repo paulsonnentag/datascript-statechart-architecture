@@ -14,6 +14,7 @@ body {
   flex-direction: column;
   gap: 16px;
   padding: 16px;
+  width: fit-content;
 }
 
 .attribute {
@@ -65,7 +66,7 @@ body {
   padding: inherit;
   font-size: inherit;
   background: none;
-  color: #0074D9;
+  color: #0074d9;
   text-decoration: underline;
 }
 
@@ -73,8 +74,53 @@ body {
   color: #aaa;
 }
 
+.view-value {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.view-value-preview {
+  padding: 8px;
+}
+
+.view-value-frames {
+  border-top: 1px dashed #ddd;
+  padding: 8px;
+}
+
 .frame {
   width: fit-content;
   border: 1px solid #ddd;
 }
 
+
+.frame-variation.is-active > .frame-name {
+  color: #0074d9;
+}
+
+.frame-variation.is-active > .frame {
+  border-color: #0074d9;
+}
+
+.frameset {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #ddd;
+}
+
+.frame-name {
+  color: #aaa;
+}
+
+.frame-variation {
+  display: flex;
+  gap: 4px;
+  flex-direction: column;
+}
+
+.frame-group {
+  display: flex;
+  gap: 16px;
+}

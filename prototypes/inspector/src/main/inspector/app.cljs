@@ -35,7 +35,7 @@
                     :inspector/selected-entity todo-id}
                    {:db/id            todo-id
                     :todo/description "Do something"
-                    :todo/completion  {:_state :pending}}])
+                    :todo/completion  {:_state :done}}])
 
 ; ui id
 
@@ -122,28 +122,51 @@
       (print "click state" ctx)
       false))
 
-
 (def todo-frameset
   {:example {:todo/description "Some task"
              :todo/completion  {:_state :pending}}
    :variations
-
    {:done {:source  '[..]
+           :condition (fn [e]
+                        (let [{completion :todo/completion} (if (number? e)
+                                                              (d/pull @conn [:todo/completion] e))]
+                          (fsm/matches completion :done)))
            :example {:todo/description "Some task"
                      :todo/completion  {:_state :done}}}}
-   :view    (fn [conn e]
+   :view    (fn [e]
               (let [{completion  :todo/completion
-                     description :todo/description} @(p/pull conn [:todo/completion :todo/description] e)
-                    done? (fsm/matches :done completion)]
-
+                     description :todo/description} (if (number? e)
+                                                      @(p/pull conn [:todo/completion :todo/description] e)
+                                                      e)
+                    done? (fsm/matches completion :done)]
                 [:div.todo
                  [:input {:type "checkbox" :checked done? :readOnly true}]
                  [:div description]]))})
 
-(defn view-view [conn e frameset]
+(defn frame-view [view current name frame]
+  (let [{:keys [variations example condition]} frame
+        matches? (or (nil? condition)
+                      (condition current))]
+    [:div.frame-group
+     [:div.frame-variation {:class (when matches? "is-active")}
+      [:div.frame-name name]
+      [:div.frame
+       [view example]]]
+
+     (when-not (empty? variations)
+       [:div.frame-variations
+        (for [[name variation] (seq variations)]
+          ^{:key name}
+          [frame-view view current name variation])])]))
+
+(defn view-view [e frameset]
   (let [view (:view frameset)]
-    [:div.frame
-     [view conn e]]))
+    [:div.view-value
+     [:div.view-value-preview
+     [:div.frame
+      [view e]]]
+     [:div.view-value-frames
+      [frame-view view e "base" frameset]]]))
 
 (defn state-view [name state]
   (let [{states  :states
@@ -168,10 +191,10 @@
 (defn machine-view [machine]
   [state-view nil machine])
 
-(defn inspector-view [conn e]
+(defn inspector-view [e]
   (let [{todo :inspector/selected-entity} @(p/pull conn [{:inspector/selected-entity [:todo/completion :todo/description]}] e)
         {description :todo/description
-         todo-id :db/id} todo]
+         todo-id     :db/id} todo]
 
     [:div.inspector
      [:div.attribute.is-inline
@@ -184,18 +207,18 @@
 
      [:div.attribute
       [:div.attribute-name "view"]
-      [:div.attribute-value [view-view conn todo-id todo-frameset]]]]))
+      [:div.attribute-value [view-view todo-id todo-frameset]]]]))
 
 
 
 
-(defn app [conn]
+(defn app []
   [:div {:data-is-root true
          :on-click     trigger-click!}
-   [inspector-view conn inspector-id]])
+   [inspector-view inspector-id]])
 
 (defn ^:dev/after-load init []
-  (dom/render [app conn] (gdom/getElement "root")))
+  (dom/render [app] (gdom/getElement "root")))
 
 
 
