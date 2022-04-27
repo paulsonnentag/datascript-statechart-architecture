@@ -22,7 +22,7 @@
 
 (def schema {:inspector/selected-entity {:db/type :db.type/ref}
              :todo/description          {}
-             :todo/completion           {}})
+             :todo/completion           {:machine completion-machine}})
 
 (defonce conn (d/create-conn schema))
 
@@ -35,7 +35,7 @@
                     :inspector/selected-entity todo-id}
                    {:db/id            todo-id
                     :todo/description "Do something"
-                    :todo/completion  {:_state :done}}])
+                    :todo/completion       {:_state :done}}])
 
 ; ui id
 
@@ -52,17 +52,20 @@
   ([element]
    (get-element-stack element '()))
 
-  ([^js element stack]
-   (let [dataset (.-dataset element)
-         view-id (-> dataset .-viewId js/parseInt)
-         db-id (-> dataset .-dbId js/parseInt)
-         name (-> dataset .-name keyword)
-         node (cond-> {}
-                      name (assoc :name name)
-                      (not (js/isNaN view-id)) (assoc :view/id view-id)
-                      (not (js/isNaN db-id)) (assoc :db/id db-id))
-         root? (= (.-isRoot dataset) "true")]
-     (if root?
+  ([element stack]
+   (let [node (reduce
+                (fn [node [str-key value]]
+                  (let [key (keyword str-key)]
+                    (case key
+                      :dbId (if-let [id (js/parseInt value 10)]
+                              (assoc node :db/id id)
+                              node)
+                      :element (assoc node :element (keyword value))
+
+                      (assoc node key value))))
+                {}
+                (js/Object.entries (.-dataset element)))]
+     (if (:isRoot node)
        stack
        (get-element-stack
          (.-parentElement element)
@@ -73,7 +76,7 @@
 
 (def event-handlers! (atom (sorted-set-by #(-> % :selector count -))))
 
-(defn trigger! [triggered-evt stack]
+(defn trigger-dom-evt! [triggered-evt stack]
   (loop [handlers @event-handlers!]
     (when-let [handler (first handlers)]
       (let [{:keys [cb selector evt]} handler
@@ -85,7 +88,7 @@
                                 (if name
                                   (let [node (last stack)]
                                     (when node
-                                      (if (= (:name node) name)
+                                      (if (= (:element node) name)
                                         (recur (assoc ctx name node)
                                                (drop-last stack)
                                                (drop-last selector))
@@ -97,6 +100,16 @@
         (when (not (false? continue-flag))
           (recur (rest handlers)))))))
 
+(defn trigger! [e property type]
+  (let [entity (d/pull @conn [property] e)
+        machine (get-in schema [property :machine])]
+    (assert machine "no statemachine defined")
+    (if-let [state (get entity property)]
+      (let [event {:e e :type type}
+            new-state (fsm/transition machine state event)]
+        (p/transact! conn [[:db/add e property new-state]]))
+      (print "ignore event" entity e property type))))
+
 (defn on [evt selector cb]
   (swap!
     event-handlers!
@@ -106,33 +119,23 @@
 
 (defn trigger-click! [evt]
   (let [stack (get-element-stack (.-target evt))]
-    (trigger! :click stack)))
+    (trigger-dom-evt! :click stack)))
 
 ; API
 
-
 ; views
-
-(on :click [:statechart]
-    (fn [ctx]
-      (print "click statechart" ctx)))
-
-(on :click [:statechart :state]
-    (fn [ctx]
-      (print "click state" ctx)
-      false))
 
 (def todo-frameset
   {:example {:todo/description "Some task"
              :todo/completion  {:_state :pending}}
    :variations
-   {:done {:source  '[..]
+   {:done {:source    '[..]
            :condition (fn [e]
                         (let [{completion :todo/completion} (if (number? e)
                                                               (d/pull @conn [:todo/completion] e))]
                           (fsm/matches completion :done)))
-           :example {:todo/description "Some task"
-                     :todo/completion  {:_state :done}}}}
+           :example   {:todo/description "Some task"
+                       :todo/completion  {:_state :done}}}}
    :view    (fn [e]
               (let [{completion  :todo/completion
                      description :todo/description} (if (number? e)
@@ -146,7 +149,7 @@
 (defn frame-view [view current name frame]
   (let [{:keys [variations example condition]} frame
         matches? (or (nil? condition)
-                      (condition current))]
+                     (condition current))]
     [:div.frame-group
      [:div.frame-variation {:class (when matches? "is-active")}
       [:div.frame-name name]
@@ -163,10 +166,19 @@
   (let [view (:view frameset)]
     [:div.view-value
      [:div.view-value-preview
-     [:div.frame
-      [view e]]]
+      [:div.frame
+       [view e]]]
      [:div.view-value-frames
       [frame-view view e "base" frameset]]]))
+
+(on :click [:inspector :attribute :action]
+    (fn [{:keys [inspector attribute action]}]
+      (let [inspector-id (:db/id inspector)
+            {{selected-entity-id :db/id} :inspector/selected-entity} (d/pull @conn [:inspector/selected-entity] inspector-id)
+            attribute-name (-> attribute :name keyword)
+            action-name (-> action :name keyword)]
+        (trigger! selected-entity-id attribute-name action-name))))
+
 
 (defn state-view [name state]
   (let [{states  :states
@@ -181,7 +193,9 @@
         (for [[name [action]] (seq actions)]
           ^{:key name}
           [:div.action
-           [:button.action-name name] "→" [:div.action-target (:target action)]])])
+           [:button.action-name {:data-element "action" :data-name name} name]
+           "→"
+           [:div.action-target (:target action)]])])
 
      (when-not (empty? states)
        [:div.state-substates
@@ -196,21 +210,19 @@
         {description :todo/description
          todo-id     :db/id} todo]
 
-    [:div.inspector
+    [:div.inspector {:data-element "inspector" :data-db-id e}
+     [:h1 "Todo"]
      [:div.attribute.is-inline
       [:div.attribute-name "description"]
       [:div.attribute-value (pr-str description)]]
 
-     [:div.attribute
+     [:div.attribute {:data-element "attribute" :data-name "todo/completion"}
       [:div.attribute-name "completion"]
       [:div.attribute-value [machine-view completion-machine]]]
 
      [:div.attribute
       [:div.attribute-name "view"]
       [:div.attribute-value [view-view todo-id todo-frameset]]]]))
-
-
-
 
 (defn app []
   [:div {:data-is-root true
