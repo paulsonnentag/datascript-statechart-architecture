@@ -9,12 +9,36 @@ body {
   font-family: sans-serif;
 }
 
+.inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.attribute {
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+}
+
+.attribute.is-inline {
+  flex-direction: row;
+}
+
+.attribute-name {
+  font-weight: bold;
+}
+
 .state {
   border: 1px solid #ddd;
   border-radius: 5px;
   padding: 8px;
   width: fit-content;
   user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .state.is-selected {
@@ -26,7 +50,25 @@ body {
   font-size: 16px;
 }
 
-.state-states {
+.state-substates {
   display: flex;
   gap: 8px;
+}
+
+.action {
+  display: flex;
+  gap: 4px;
+}
+
+.action-name {
+  border: 0;
+  padding: inherit;
+  font-size: inherit;
+  background: none;
+  color: #0074D9;
+  text-decoration: underline;
+}
+
+.action-target {
+  color: #aaa;
 }

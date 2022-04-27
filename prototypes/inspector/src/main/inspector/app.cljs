@@ -20,14 +20,22 @@
                 {:toggle :pending}}}}))
 
 
-(def schema {:statechart/machine {}})
+(def schema {:inspector/selected-entity {:db/type :db.type/ref}
+             :todo/description          {}
+             :todo/completion           {}})
 
 (defonce conn (d/create-conn schema))
 
 (p/posh! conn)
 
-(d/transact! conn [{:db/id              1
-                    :statechart/machine completion-machine}])
+(def inspector-id 1)
+(def todo-id 2)
+
+(d/transact! conn [{:db/id                     inspector-id
+                    :inspector/selected-entity todo-id}
+                   {:db/id            todo-id
+                    :todo/description "Do something"
+                    :todo/completion  {:_state :pending}}])
 
 ; ui id
 
@@ -89,7 +97,6 @@
         (when (not (false? continue-flag))
           (recur (rest handlers)))))))
 
-
 (defn on [evt selector cb]
   (swap!
     event-handlers!
@@ -101,6 +108,11 @@
   (let [stack (get-element-stack (.-target evt))]
     (trigger! :click stack)))
 
+; API
+
+
+; views
+
 (on :click [:statechart]
     (fn [ctx]
       (print "click statechart" ctx)))
@@ -110,37 +122,49 @@
       (print "click state" ctx)
       false))
 
-; views
+(defn state-view [name state]
+  (let [{states  :states
+         actions :on} state]
+    [:div.state
 
-(defn state-view []
-  (let [ui-id (get-ui-id)]
-    (r/create-class
-      {:display-name "state-view"
-       :reagent-render
-       (fn [conn name state]
-         [:div.state {:data-view-id ui-id :data-name "state"}
-          [:h1.state-name name]])})))
+     (when name
+       [:div.state-name name])
 
-(defn statechart-view []
-  (let [ui-id (get-ui-id)]
-    (r/create-class
-      {:display-name "statechart-view"
-       :reagent-render
-       (fn [conn e]
-         (let [{machine :statechart/machine} @(p/pull conn '[*] e)
-               states (:states machine)
-               name (:id machine)]
-           [:div.state {:data-view-id ui-id :data-db-id e :data-name "statechart"}
-            [:h1.state-name name]
-            [:div.state-states
-             (for [[name state] (seq states)]
-               ^{:key name} [state-view conn name state])]]))})))
+     (when-not (empty? actions)
+       [:div.state-actions
+        (for [[name [action]] (seq actions)]
+          ^{:key name}
+          [:div.action
+           [:button.action-name name] "→" [:div.action-target (:target action)]])])
+
+     (when-not (empty? states)
+       [:div.state-substates
+        (for [[name state] (seq states)]
+          ^{:key name} [state-view name state])])]))
+
+(defn machine-view [machine]
+  [state-view nil machine])
+
+(defn inspector-view [conn e]
+  (let [{todo :inspector/selected-entity} @(p/pull conn [{:inspector/selected-entity [:todo/completion :todo/description]}] e)
+        description (:todo/description todo)]
+
+    [:div.inspector
+     [:div.attribute.is-inline
+      [:div.attribute-name "description"]
+      [:div.attribute-value (pr-str description)]]
+
+     [:div.attribute
+      [:div.attribute-name "completion"]
+      [:div.attribute-value [machine-view completion-machine]]]]))
+
+
 
 
 (defn app [conn]
   [:div {:data-is-root true
          :on-click     trigger-click!}
-   [statechart-view conn 1]])
+   [inspector-view conn inspector-id]])
 
 (defn ^:dev/after-load init []
   (dom/render [app conn] (gdom/getElement "root")))
