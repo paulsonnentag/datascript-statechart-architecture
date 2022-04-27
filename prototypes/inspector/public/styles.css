@@ -72,3 +72,9 @@ body {
 .action-target {
   color: #aaa;
 }
+
+.frame {
+  width: fit-content;
+  border: 1px solid #ddd;
+}
+

@@ -122,6 +122,29 @@
       (print "click state" ctx)
       false))
 
+
+(def todo-frameset
+  {:example {:todo/description "Some task"
+             :todo/completion  {:_state :pending}}
+   :variations
+
+   {:done {:source  '[..]
+           :example {:todo/description "Some task"
+                     :todo/completion  {:_state :done}}}}
+   :view    (fn [conn e]
+              (let [{completion  :todo/completion
+                     description :todo/description} @(p/pull conn [:todo/completion :todo/description] e)
+                    done? (fsm/matches :done completion)]
+
+                [:div.todo
+                 [:input {:type "checkbox" :checked done? :readOnly true}]
+                 [:div description]]))})
+
+(defn view-view [conn e frameset]
+  (let [view (:view frameset)]
+    [:div.frame
+     [view conn e]]))
+
 (defn state-view [name state]
   (let [{states  :states
          actions :on} state]
@@ -147,7 +170,8 @@
 
 (defn inspector-view [conn e]
   (let [{todo :inspector/selected-entity} @(p/pull conn [{:inspector/selected-entity [:todo/completion :todo/description]}] e)
-        description (:todo/description todo)]
+        {description :todo/description
+         todo-id :db/id} todo]
 
     [:div.inspector
      [:div.attribute.is-inline
@@ -156,7 +180,11 @@
 
      [:div.attribute
       [:div.attribute-name "completion"]
-      [:div.attribute-value [machine-view completion-machine]]]]))
+      [:div.attribute-value [machine-view completion-machine]]]
+
+     [:div.attribute
+      [:div.attribute-name "view"]
+      [:div.attribute-value [view-view conn todo-id todo-frameset]]]]))
 
 
 
