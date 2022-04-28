@@ -171,5 +171,9 @@ Then we match the element path against the selector
 We start with the last element and match it against the last element 
 
 
-
 Events can be canceled by returning false
+
+## Unifying Statecharts and views
+
+Both statecharts and views could be seen as tree structures that can trigger events at various 
+points in the tree
