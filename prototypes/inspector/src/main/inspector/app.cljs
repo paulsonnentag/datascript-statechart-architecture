@@ -19,10 +19,26 @@
       :done    {:on
                 {:toggle :pending}}}}))
 
+(def view-mode-machine
+  (fsm/machine
+    {:id      :completion-machine
+     :context {}
+     :initial :viewing
+     :states
+     {:viewing {:on
+                {:edit :editing}}
+      :editing {:entry #(print "entry editing")
+                :on
+                {:save   {:target  :viewing
+                          :actions #(print "save")}
+                 :cancel {:target  :viewing
+                          :actions #(print "cancel")}
+                 :update {:actions #(print "update")}}}}}))
 
 (def schema {:inspector/selected-entity {:db/type :db.type/ref}
              :todo/description          {}
-             :todo/completion           {:machine completion-machine}})
+             :todo/completion           {:machine completion-machine}
+             :todo/view-mode            {:machine view-mode-machine}})
 
 (defonce conn (d/create-conn schema))
 
@@ -35,7 +51,8 @@
                     :inspector/selected-entity todo-id}
                    {:db/id            todo-id
                     :todo/description "Do something"
-                    :todo/completion  {:_state :pending}}])
+                    :todo/completion  {:_state :pending}
+                    :todo/view-mode   {:_state :viewing}}])
 
 ; ui id
 
@@ -131,31 +148,47 @@
 
 (def todo-frameset
   {:example {:todo/description "Some task"
-             :todo/completion  {:_state :pending}}
+             :todo/completion  {:_state :pending}
+             :todo/view-mode   {:_state :viewing}}
    :variations
-   {:done {:source    '[..]
-           :condition (fn [e]
-                        (let [{completion :todo/completion} (if (number? e)
-                                                              @(p/pull conn [:todo/completion] e))]
-                          (fsm/matches completion :done)))
-           :example   {:todo/description "Some task"
-                       :todo/completion  {:_state :done}}}}
+   {:done    {:source    '[..]
+              :condition (fn [e]
+                           (let [{completion :todo/completion} (if (number? e)
+                                                                 @(p/pull conn [:todo/completion] e))]
+                             (fsm/matches completion :done)))
+              :example   {:todo/description "Some task"
+                          :todo/completion  {:_state :done}
+                          :todo/view-mode   {:_state :viewing}}}
+    :editing {:source    '[..]
+              :condition (fn [e]
+                           (let [{view-mode :todo/view-mode} (if (number? e)
+                                                               @(p/pull conn [:todo/view-mode] e))]
+                             (fsm/matches view-mode :editing)))
+              :example   {:todo/description "Some task"
+                          :todo/completion  {:_state :pending}
+                          :todo/view-mode   {:_state :editing}}}}
    :view    (fn [e]
               (let [{completion  :todo/completion
+                     view-mode   :todo/view-mode
                      description :todo/description} (if (number? e)
-                                                      @(p/pull conn [:todo/completion :todo/description] e)
+                                                      @(p/pull conn [:todo/completion
+                                                                     :todo/view-mode
+                                                                     :todo/description] e)
                                                       e)
-                    done? (fsm/matches completion :done)]
+                    done? (fsm/matches completion :done)
+                    editing? (fsm/matches view-mode :editing)]
                 [:label.todo {:data-db-id e :data-element "todo"}
                  [:input {:type "checkbox" :checked done? :readOnly true}]
-                 [:div description]]))})
+                 (if editing?
+                   [:input {:value description :onChange (fn [])}]
+                   [:div description])]))})
 
 (defn replace-entity-with-example! [e example]
   (let [retract-keys (-> (d/pull @conn '[*] e)
                          (dissoc :db/id)
                          keys)
-        retract-tx  (for [key retract-keys]
-                      [:db.fn/retractAttribute key])
+        retract-tx (for [key retract-keys]
+                     [:db.fn/retractAttribute key])
         add-tx (for [[key value] (seq example)]
                  [:db/add e key value])]
 
@@ -181,8 +214,7 @@
   (let [view (:view frameset)]
     [:div.view-value
      [:div.view-value-preview
-      [:div.frame
-       [view e]]]
+      [view e]]
      [:div.view-value-frames
       [frame-view view e "base" frameset]]]))
 
@@ -214,8 +246,10 @@
               {:class "is-active" :data-element "action" :data-name name}
               {:disabled true})
             name]
-           "→"
-           [:div.action-target (:target action)]])])
+           (when-let [target (:target action)]
+             [:<>
+              "→"
+              [:div.action-target target]])])])
 
      (when-not (empty? substate-defs)
        [:div.state-substates
@@ -227,9 +261,11 @@
 
 (defn inspector-view [e]
   (let [{todo :inspector/selected-entity} @(p/pull conn [{:inspector/selected-entity [:todo/completion
+                                                                                      :todo/view-mode
                                                                                       :todo/description]}] e)
         {description :todo/description
          completion  :todo/completion
+         view-mode   :todo/view-mode
          todo-id     :db/id} todo]
 
     [:div.inspector {:data-element "inspector" :data-db-id e}
@@ -241,6 +277,10 @@
      [:div.attribute {:data-element "attribute" :data-name "todo/completion"}
       [:div.attribute-name "completion"]
       [:div.attribute-value [machine-view completion completion-machine]]]
+
+     [:div.attribute {:data-element "attribute" :data-name "todo/view-mode"}
+      [:div.attribute-name "view-mode"]
+      [:div.attribute-value [machine-view view-mode view-mode-machine]]]
 
      [:div.attribute
       [:div.attribute-name "view"]
