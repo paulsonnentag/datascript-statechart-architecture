@@ -6,6 +6,8 @@
             [reagent.core :as r]
             [posh.reagent :as p]))
 
+(declare trigger-stack!)
+
 (defn input-value [evt]
   (-> evt .-target .-value))
 
@@ -27,13 +29,36 @@
      :states
      {:viewing {:on
                 {:edit :editing}}
-      :editing {:entry #(print "entry editing")
+      :editing {:entry (fn [_ {:keys [e]}]
+                         (trigger-stack!
+                         :enter
+                         [{:node :todo :db/id e}
+                          {:node :view-mode}
+                          {:node :editing}]))
                 :on
                 {:save   {:target  :viewing
-                          :actions #(print "save")}
+                          :actions (fn [_ {:keys [e value]}]
+                                     (trigger-stack!
+                                       :save
+                                       [{:node :todo :db/id e}
+                                        {:node :view-mode}
+                                        {:node :editing}]
+                                       value))}
                  :cancel {:target  :viewing
-                          :actions #(print "cancel")}
-                 :update {:actions #(print "update")}}}}}))
+                          :actions (fn [_ {:keys [e value]}]
+                                     (trigger-stack!
+                                       :cancel
+                                       [{:node :todo :db/id e}
+                                        {:node :view-mode}
+                                        {:node :editing}]
+                                       value))}
+                 :update {:actions (fn [_ {:keys [e value]}]
+                                     (trigger-stack!
+                                       :update
+                                       [{:node :todo :db/id e}
+                                        {:node :view-mode}
+                                        {:node :editing}]
+                                       value))}}}}}))
 
 (def schema {:inspector/selected-entity {:db/type :db.type/ref}
              :todo/description          {}
@@ -77,7 +102,7 @@
                       :dbId (if-let [id (js/parseInt value 10)]
                               (assoc node :db/id id)
                               node)
-                      :element (assoc node :element (keyword value))
+                      :node (assoc node :node (keyword value))
 
                       (assoc node key value))))
                 {}
@@ -93,7 +118,10 @@
 
 (def event-handlers! (atom (sorted-set-by #(-> % :selector count -))))
 
-(defn trigger-dom-evt! [triggered-evt stack]
+(defn trigger-stack!
+  ([triggered-evt stack]
+   (trigger-stack! triggered-evt stack nil))
+  ([triggered-evt stack dom-evt]
   (loop [handlers @event-handlers!]
     (when-let [handler (first handlers)]
       (let [{:keys [cb selector evt]} handler
@@ -105,7 +133,7 @@
                                 (if name
                                   (let [node (last stack)]
                                     (when node
-                                      (if (= (:element node) name)
+                                      (if (= (:node node) name)
                                         (recur (assoc ctx name node)
                                                (drop-last stack)
                                                (drop-last selector))
@@ -113,19 +141,23 @@
                                                (drop-last stack)
                                                selector))))
 
-                                  (cb ctx)))))]
+                                  (cb ctx dom-evt)))))]
         (when (not (false? continue-flag))
-          (recur (rest handlers)))))))
+          (recur (rest handlers))))))))
 
-(defn trigger! [e property type]
+(defn trigger!
+  ([e property type]
+   (trigger! e property type {}))
+
+  ([e property type data]
   (let [entity (d/pull @conn [property] e)
         machine (get-in schema [property :machine])]
     (assert machine "no statemachine defined")
     (if-let [state (get entity property)]
-      (let [event {:e e :type type}
+      (let [event (assoc data :e e :type type)
             new-state (fsm/transition machine state event)]
         (p/transact! conn [[:db/add e property new-state]]))
-      (print "ignore event" entity e property type))))
+      (print "ignore event" entity e property type)))))
 
 (defn on [evt selector cb]
   (swap!
@@ -134,17 +166,57 @@
               :selector selector
               :cb       cb})))
 
-(defn trigger-click! [evt]
+(defn trigger-dom-evt! [name evt]
   (let [stack (get-element-stack (.-target evt))]
-    (trigger-dom-evt! :click stack)))
+    (trigger-stack! name stack evt)))
 
 ; API
 
 ; views
 
-(on :click [:todo]
+(on :click [:todo :checkbox]
     (fn [{:keys [todo]}]
       (trigger! (:db/id todo) :todo/completion :toggle)))
+
+(on :click [:todo :label]
+    (fn [{:keys [todo]}]
+      (trigger! (:db/id todo) :todo/view-mode :edit)))
+
+(on :blur [:todo :input]
+    (fn [{:keys [todo]}]
+      (trigger! (:db/id todo) :todo/view-mode :save)))
+
+(on :key-down [:todo :input]
+    (fn [{:keys [todo]} evt]
+      (when (= "Escape" (.-code evt))
+               (trigger! (:db/id todo) :todo/view-mode :cancel))))
+
+(on :change [:todo :input]
+    (fn [{:keys [todo]} evt]
+      (trigger! (:db/id todo) :todo/view-mode :update {:value (input-value evt)})))
+
+(on :enter [:todo :view-mode :editing]
+    (fn [{:keys [todo]}]
+      (let [todo-id (:db/id todo)
+            {description :todo/description } (d/pull @conn [:todo/description] todo-id)]
+        (p/transact! conn [[:db/add todo-id :todo/temp-description description]]))))
+
+(on :save [:todo :view-mode :editing]
+    (fn [{:keys [todo]}]
+      (let [todo-id (:db/id todo)
+            {temp-description :todo/temp-description } (d/pull @conn [:todo/temp-description] todo-id)]
+        (p/transact! conn [[:db.fn/retractAttribute todo-id :todo/temp-description]
+                           [:db/add todo-id :todo/description temp-description]]))))
+
+(on :cancel [:todo :view-mode :editing]
+    (fn [{:keys [todo]}]
+      (let [todo-id (:db/id todo)
+            {temp-description :todo/temp-description } (d/pull @conn [:todo/temp-description] todo-id)]
+        (p/transact! conn [[:db.fn/retractAttribute todo-id :todo/temp-description]]))))
+
+(on :update [:todo :view-mode :editing]
+    (fn [{:keys [todo]} new-description]
+      (p/transact! conn [[:db/add (:db/id todo) :todo/temp-description new-description]])))
 
 (def todo-frameset
   {:example {:todo/description "Some task"
@@ -165,23 +237,36 @@
                                                                @(p/pull conn [:todo/view-mode] e))]
                              (fsm/matches view-mode :editing)))
               :example   {:todo/description "Some task"
+                          :todo/temp-description "Some task"
                           :todo/completion  {:_state :pending}
                           :todo/view-mode   {:_state :editing}}}}
    :view    (fn [e]
-              (let [{completion  :todo/completion
+              (let [in-frameset? (not (number? e))
+                    {completion  :todo/completion
                      view-mode   :todo/view-mode
-                     description :todo/description} (if (number? e)
+                     description :todo/description
+                     temp-description :todo/temp-description} (if in-frameset?
+                                                      e
                                                       @(p/pull conn [:todo/completion
                                                                      :todo/view-mode
-                                                                     :todo/description] e)
-                                                      e)
+                                                                     :todo/description
+                                                                     :todo/temp-description] e))
                     done? (fsm/matches completion :done)
                     editing? (fsm/matches view-mode :editing)]
-                [:label.todo {:data-db-id e :data-element "todo"}
-                 [:input {:type "checkbox" :checked done? :readOnly true}]
+                [:div.todo {:data-db-id e :data-node "todo"}
+                 [:input {:data-node "checkbox"
+                          :type "checkbox"
+                          :checked done?
+                          :on-change (fn [])}]
                  (if editing?
-                   [:input {:value description :onChange (fn [])}]
-                   [:div description])]))})
+                   [:input.todo-input {:data-node "input"
+                            :value    temp-description
+                            :onChange (fn [])
+                            :ref      (fn [element]         ; TODO: handle this through event selectors
+                                        (when (and element
+                                                   (not in-frameset?))
+                                          (.focus element)))}]
+                   [:div {:data-node "label"} description])]))})
 
 (defn replace-entity-with-example! [e example]
   (let [retract-keys (-> (d/pull @conn '[*] e)
@@ -243,7 +328,7 @@
           [:div.action
            [:button.action-name
             (if active?
-              {:class "is-active" :data-element "action" :data-name name}
+              {:class "is-active" :data-node "action" :data-name name}
               {:disabled true})
             name]
            (when-let [target (:target action)]
@@ -262,23 +347,29 @@
 (defn inspector-view [e]
   (let [{todo :inspector/selected-entity} @(p/pull conn [{:inspector/selected-entity [:todo/completion
                                                                                       :todo/view-mode
-                                                                                      :todo/description]}] e)
+                                                                                      :todo/description
+                                                                                      :todo/temp-description]}] e)
         {description :todo/description
+         temp-description :todo/temp-description
          completion  :todo/completion
          view-mode   :todo/view-mode
          todo-id     :db/id} todo]
-
-    [:div.inspector {:data-element "inspector" :data-db-id e}
+    [:div.inspector {:data-node "inspector" :data-db-id e}
      [:h1 "Todo"]
      [:div.attribute.is-inline
       [:div.attribute-name "description"]
       [:div.attribute-value (pr-str description)]]
 
-     [:div.attribute {:data-element "attribute" :data-name "todo/completion"}
+     (when temp-description
+       [:div.attribute.is-inline
+        [:div.attribute-name "temp-description"]
+        [:div.attribute-value (pr-str temp-description)]])
+
+     [:div.attribute {:data-node "attribute" :data-name "todo/completion"}
       [:div.attribute-name "completion"]
       [:div.attribute-value [machine-view completion completion-machine]]]
 
-     [:div.attribute {:data-element "attribute" :data-name "todo/view-mode"}
+     [:div.attribute {:data-node "attribute" :data-name "todo/view-mode"}
       [:div.attribute-name "view-mode"]
       [:div.attribute-value [machine-view view-mode view-mode-machine]]]
 
@@ -288,12 +379,11 @@
 
 (defn app []
   [:div {:data-is-root true
-         :on-click     trigger-click!}
+         :on-click     #(trigger-dom-evt! :click %)
+         :on-blur     #(trigger-dom-evt! :blur %)
+         :on-key-down #(trigger-dom-evt! :key-down %)
+         :on-change    #(trigger-dom-evt! :change %)}
    [inspector-view inspector-id]])
 
 (defn ^:dev/after-load init []
   (dom/render [app] (gdom/getElement "root")))
-
-
-
-
