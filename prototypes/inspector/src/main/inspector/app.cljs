@@ -125,6 +125,10 @@
 
 ; views
 
+(on :click [:todo]
+    (fn [{:keys [todo]}]
+      (trigger! (:db/id todo) :todo/completion :toggle)))
+
 (def todo-frameset
   {:example {:todo/description "Some task"
              :todo/completion  {:_state :pending}}
@@ -142,7 +146,7 @@
                                                       @(p/pull conn [:todo/completion :todo/description] e)
                                                       e)
                     done? (fsm/matches completion :done)]
-                [:div.todo
+                [:label.todo {:data-db-id e :data-element "todo"}
                  [:input {:type "checkbox" :checked done? :readOnly true}]
                  [:div description]]))})
 
