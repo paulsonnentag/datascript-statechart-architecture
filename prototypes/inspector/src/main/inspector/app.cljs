@@ -5,7 +5,7 @@
             [posh.reagent :as p]
             [inspector.events :as events]
             [inspector.inspector :as inspector]
-            [inspector.db  :refer [conn]]
+            [inspector.db :refer [conn]]
             [inspector.todo :as todo]))
 
 (def inspector-id 1)
@@ -16,9 +16,10 @@
 (p/posh! conn)
 
 (d/transact! conn [{:db/id                inspector-id
+                    :inspector/name       "todo"
                     :inspector/entity     todo-1-id
-                    :inspector/properties [:todo/description :todo/completion :todo/view-mode]
-                    :inspector/view       todo/frameset}
+                    :inspector/attributes [:todo/description :todo/completion :todo/view-mode]
+                    :inspector/frameset       todo/frameset}
                    {:db/id            todo-1-id
                     :todo/description "Do something"
                     :todo/completion  {:_state :pending}

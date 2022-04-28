@@ -41,8 +41,6 @@
      [:div.view-value-frames
       [frame-view view e "base" frameset]]]))
 
-
-
 (on :click [:inspector :attribute :action]
     (fn [{:keys [inspector attribute action]}]
       (let [inspector-id (:db/id inspector)
@@ -50,7 +48,6 @@
             attribute-name (-> attribute :name keyword)
             action-name (-> action :name keyword)]
         (events/trigger! selected-entity-id attribute-name action-name))))
-
 
 (defn state-view [state name state-def]
   (let [{substate-defs :states
@@ -85,34 +82,40 @@
   [state-view state nil machine])
 
 (defn view [e]
-  (let [{todo :inspector/entity} @(p/pull conn [{:inspector/entity [:todo/completion
-                                                                    :todo/view-mode
-                                                                    :todo/description
-                                                                    :todo/temp-description]}] e)
-        {description      :todo/description
-         temp-description :todo/temp-description
-         completion       :todo/completion
-         view-mode        :todo/view-mode
-         todo-id          :db/id} todo]
+  (let [{name             :inspector/name
+         entity           :inspector/entity
+         frameset :inspector/frameset
+         attributes :inspector/attributes} @(p/pull
+                                                          conn
+                                                          [:inspector/name
+                                                           :inspector/attributes
+                                                           :inspector/frameset
+                                                           {:inspector/entity '[*]}] e)
+        entity-id (:db/id entity)
+
+        rest-entity (apply dissoc entity :db/id attributes)]
+
+
     [:div.inspector {:data-node "inspector" :data-db-id e}
-     [:h1 "Todo"]
-     [:div.attribute.is-inline
-      [:div.attribute-name "description"]
-      [:div.attribute-value (pr-str description)]]
-
-     (when temp-description
-       [:div.attribute.is-inline
-        [:div.attribute-name "temp-description"]
-        [:div.attribute-value (pr-str temp-description)]])
-
-     [:div.attribute {:data-node "attribute" :data-name "todo/completion"}
-      [:div.attribute-name "completion"]
-      [:div.attribute-value [machine-view completion todo/completion-machine]]]
-
-     [:div.attribute {:data-node "attribute" :data-name "todo/view-mode"}
-      [:div.attribute-name "view-mode"]
-      [:div.attribute-value [machine-view view-mode todo/view-mode-machine]]]
+     [:h1 name]
+a
+     (for [attribute attributes]
+       (let [value (get entity attribute)]
+       ^{:key attribute}
+       [:div.attribute
+        [:div.attribute-name attribute]
+        [:div.attribute-value]
+        (if (:_state value)
+          [machine-view value (get-in @db/schema [attribute :machine])]
+          (pr-str value))]))
 
      [:div.attribute
       [:div.attribute-name "view"]
-      [:div.attribute-value [view-view todo-id todo/frameset]]]]))
+      [:div.attribute-value [view-view entity-id frameset]]]
+
+     (for [[key value] (seq rest-entity)]
+       ^{:key key}
+       [:div.attribute
+        [:div.attribute-name key]
+        [:div.attribute-value (pr-str value)]])]))
+
