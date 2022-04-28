@@ -35,7 +35,7 @@
                     :inspector/selected-entity todo-id}
                    {:db/id            todo-id
                     :todo/description "Do something"
-                    :todo/completion       {:_state :pending}}])
+                    :todo/completion  {:_state :pending}}])
 
 ; ui id
 
@@ -148,10 +148,10 @@
 
 (defn frame-view [view current name frame]
   (let [{:keys [variations example condition]} frame
-        matches? (or (nil? condition)
-                     (condition current))]
+        active? (or (nil? condition)
+                    (condition current))]
     [:div.frame-group
-     [:div.frame-variation {:class (when matches? "is-active")}
+     [:div.frame-variation {:class (when active? "is-active")}
       [:div.frame-name name]
       [:div.frame
        [view example]]]
@@ -180,10 +180,11 @@
         (trigger! selected-entity-id attribute-name action-name))))
 
 
-(defn state-view [name state]
-  (let [{states  :states
-         actions :on} state]
-    [:div.state
+(defn state-view [state name state-def]
+  (let [{substate-defs :states
+         actions       :on} state-def
+        active? (fsm/matches state name)]
+    [:div.state {:class (when (and name active?) "is-active")}
 
      (when name
        [:div.state-name name])
@@ -193,21 +194,27 @@
         (for [[name [action]] (seq actions)]
           ^{:key name}
           [:div.action
-           [:button.action-name {:data-element "action" :data-name name} name]
+           [:button.action-name
+            (if active?
+              {:class "is-active" :data-element "action" :data-name name}
+              {:disabled true})
+            name]
            "→"
            [:div.action-target (:target action)]])])
 
-     (when-not (empty? states)
+     (when-not (empty? substate-defs)
        [:div.state-substates
-        (for [[name state] (seq states)]
-          ^{:key name} [state-view name state])])]))
+        (for [[name substate-def] (seq substate-defs)]
+          ^{:key name} [state-view state name substate-def])])]))
 
-(defn machine-view [machine]
-  [state-view nil machine])
+(defn machine-view [state machine]
+  [state-view state nil machine])
 
 (defn inspector-view [e]
-  (let [{todo :inspector/selected-entity} @(p/pull conn [{:inspector/selected-entity [:todo/completion :todo/description]}] e)
+  (let [{todo :inspector/selected-entity} @(p/pull conn [{:inspector/selected-entity [:todo/completion
+                                                                                      :todo/description]}] e)
         {description :todo/description
+         completion  :todo/completion
          todo-id     :db/id} todo]
 
     [:div.inspector {:data-element "inspector" :data-db-id e}
@@ -218,7 +225,7 @@
 
      [:div.attribute {:data-element "attribute" :data-name "todo/completion"}
       [:div.attribute-name "completion"]
-      [:div.attribute-value [machine-view completion-machine]]]
+      [:div.attribute-value [machine-view completion completion-machine]]]
 
      [:div.attribute
       [:div.attribute-name "view"]
