@@ -35,7 +35,7 @@
                     :inspector/selected-entity todo-id}
                    {:db/id            todo-id
                     :todo/description "Do something"
-                    :todo/completion       {:_state :done}}])
+                    :todo/completion       {:_state :pending}}])
 
 ; ui id
 
@@ -132,7 +132,7 @@
    {:done {:source    '[..]
            :condition (fn [e]
                         (let [{completion :todo/completion} (if (number? e)
-                                                              (d/pull @conn [:todo/completion] e))]
+                                                              @(p/pull conn [:todo/completion] e))]
                           (fsm/matches completion :done)))
            :example   {:todo/description "Some task"
                        :todo/completion  {:_state :done}}}}
