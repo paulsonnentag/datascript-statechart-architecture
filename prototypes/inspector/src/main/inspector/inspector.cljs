@@ -2,7 +2,6 @@
   (:require [posh.reagent :as p]
             [datascript.core :as d]
             [statecharts.core :as fsm]
-            [inspector.todo :as todo]
             [inspector.events :as events :refer [on]]
             [inspector.db :as db :refer [conn]]))
 
@@ -82,32 +81,38 @@
   [state-view state nil machine])
 
 (defn view [e]
-  (let [{name             :inspector/name
-         entity           :inspector/entity
-         frameset :inspector/frameset
+  (let [{name       :inspector/name
+         entity     :inspector/entity
+         frameset   :inspector/frameset
          attributes :inspector/attributes} @(p/pull
-                                                          conn
-                                                          [:inspector/name
-                                                           :inspector/attributes
-                                                           :inspector/frameset
-                                                           {:inspector/entity '[*]}] e)
+                                              conn
+                                              [:inspector/name
+                                               :inspector/attributes
+                                               :inspector/frameset
+                                               {:inspector/entity '[*]}] e)
         entity-id (:db/id entity)
+
+        matching-entities @(p/q (into [:find ['?e '...]
+                                 :where] (for [attribute attributes]
+                                           ['?e attribute '_])) conn)
 
         rest-entity (apply dissoc entity :db/id attributes)]
 
-
     [:div.inspector {:data-node "inspector" :data-db-id e}
-     [:h1 name]
+     [:div.inspector-header
+      [:h1.inspector-title name]
+
+      (count matching-entities)]
 
      (for [attribute attributes]
        (let [value (get entity attribute)]
-       ^{:key attribute}
-       [:div.attribute
-        [:div.attribute-name attribute]
-        [:div.attribute-value]
-        (if (:_state value)
-          [machine-view value (get-in @db/schema [attribute :machine])]
-          (pr-str value))]))
+         ^{:key attribute}
+         [:div.attribute
+          [:div.attribute-name attribute]
+          [:div.attribute-value
+           (if (:_state value)
+             [machine-view value (get-in @db/schema [attribute :machine])]
+             [:div.literal-value (pr-str value)])]]))
 
      [:div.attribute
       [:div.attribute-name "view"]
