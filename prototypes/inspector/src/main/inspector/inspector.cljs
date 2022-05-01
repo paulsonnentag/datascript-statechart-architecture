@@ -98,7 +98,7 @@
 
     [:div.inspector {:data-node "inspector" :data-db-id e}
      [:h1 name]
-a
+
      (for [attribute attributes]
        (let [value (get entity attribute)]
        ^{:key attribute}

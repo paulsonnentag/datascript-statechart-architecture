@@ -87,10 +87,6 @@ body {
   border-radius: 5px;
 }
 
-.view-value-preview {
-  padding: 8px;
-}
-
 .view-value-frames {
   border-top: 1px dashed #ddd;
   padding: 8px;
@@ -138,4 +134,13 @@ body {
 .frame-group {
   display: flex;
   gap: 16px;
+}
+
+.todo-list {
+  padding: 16px;
+}
+
+.todo-list-title {
+  font-size: 1.2em;
+  font-weight: normal;
 }

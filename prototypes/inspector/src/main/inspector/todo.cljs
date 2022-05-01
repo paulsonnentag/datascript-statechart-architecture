@@ -148,7 +148,7 @@
                                        :value     temp-description
                                        :onChange  (fn [])
                                        :ref       (fn [element] ; TODO: handle this through event selectors
-                                                    (when (and element
+                                                    #_(when (and element
                                                                (not in-frameset?))
                                                       (.focus element)))}]
                    [:div {:data-node "label"} description])]))})

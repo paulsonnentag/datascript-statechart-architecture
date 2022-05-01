@@ -6,16 +6,19 @@
             [inspector.events :as events]
             [inspector.inspector :as inspector]
             [inspector.db :refer [conn]]
-            [inspector.todo :as todo]))
+            [inspector.todo :as todo]
+            [inspector.todo-list :as todo-list]))
 
-(def inspector-id 1)
+(def todo-inspector-id 1)
 (def todo-1-id 2)
 (def todo-2-id 3)
 (def todo-3-id 4)
+(def todo-list-inspector-id 5)
+(def todo-list-id 6)
 
 (p/posh! conn)
 
-(d/transact! conn [{:db/id                inspector-id
+(d/transact! conn [{:db/id                todo-inspector-id
                     :inspector/name       "todo"
                     :inspector/entity     todo-1-id
                     :inspector/attributes [:todo/description :todo/completion :todo/view-mode]
@@ -31,7 +34,14 @@
                    {:db/id            todo-3-id
                     :todo/description "Do another thing"
                     :todo/completion  {:_state :pending}
-                    :todo/view-mode   {:_state :viewing}}])
+                    :todo/view-mode   {:_state :viewing}}
+                   {:db/id todo-list-inspector-id
+                    :inspector/name "todo-list"
+                    :inspector/entity todo-list-id
+                    :inspector/attributes [:todo-list/todos]
+                    :inspector/frameset todo-list/frameset}
+                   {:db/id todo-list-id
+                    :todo-list/todos [2 3 4]}])
 
 (defn app []
   [:div {:data-is-root true
@@ -39,7 +49,8 @@
          :on-blur      #(events/trigger-dom-evt! :blur %)
          :on-key-down  #(events/trigger-dom-evt! :key-down %)
          :on-change    #(events/trigger-dom-evt! :change %)}
-   [inspector/view inspector-id]])
+   [inspector/view todo-list-inspector-id]
+   [inspector/view todo-inspector-id]])
 
 (defn ^:dev/after-load init []
   (dom/render [app] (gdom/getElement "root")))
