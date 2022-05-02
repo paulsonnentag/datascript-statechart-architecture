@@ -169,3 +169,22 @@ body {
   font-size: 1.2em;
   font-weight: normal;
 }
+
+.dot-selection {
+  display: flex;
+  gap: 4px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border-radius: 5px;
+  border: 0;
+  background: #000;
+  opacity: 0.3;
+}
+
+.dot.is-selected {
+  opacity: 1;
+}

@@ -82,5 +82,4 @@
 
 (defn trigger-dom-evt! [name evt]
   (let [stack (get-element-stack (.-target evt))]
-    (print "trigger" name stack)
     (trigger-stack! name stack evt)))

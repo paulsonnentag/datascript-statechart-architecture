@@ -83,21 +83,31 @@
 (defn full-name [keyword]
   (subs (str keyword) 1))
 
+(on :click [:inspector :dot-selection :dot]
+    (fn [{:keys [inspector dot]}]
+      (let [inspector-id (:db/id inspector)
+            dot-idx (-> dot :idx js/parseInt)]
+        (p/transact! conn [[:db/add inspector-id :inspector/selected-index dot-idx]]))))
+
 (defn view [e]
-  (let [{name       :inspector/name
-         entity     :inspector/entity
-         frameset   :inspector/frameset
-         attributes :inspector/attributes} @(p/pull
-                                              conn
-                                              [:inspector/name
-                                               :inspector/attributes
-                                               :inspector/frameset
-                                               {:inspector/entity '[*]}] e)
-        entity-id (:db/id entity)
+  (let [{name         :inspector/name
+         selected-idx :inspector/selected-index
+         frameset     :inspector/frameset
+         attributes   :inspector/attributes} @(p/pull
+                                                conn
+                                                [:inspector/name
+                                                 :inspector/attributes
+                                                 :inspector/frameset
+                                                 :inspector/selected-index] e)
+
 
         matching-entities @(p/q (into [:find ['?e '...]
-                                 :where] (for [attribute attributes]
-                                           ['?e attribute '_])) conn)
+                                       :where] (for [attribute attributes]
+                                                 ['?e attribute '_])) conn)
+
+        entity-id (nth matching-entities selected-idx (last matching-entities))
+
+        entity @(p/pull conn '[*] entity-id)
 
         rest-entity (apply dissoc entity :db/id attributes)]
 
@@ -105,7 +115,17 @@
      [:div.inspector-header
       [:h1.inspector-title name]
 
-      (count matching-entities)]
+
+      (when (> (count matching-entities) 1)
+        [:div.dot-selection {:data-node "dot-selection"}
+         (map-indexed
+           (fn [idx entity]
+             ^{:key idx}
+             [:button.dot
+              {:data-idx  idx
+               :data-node "dot"
+               :class     (when (= idx selected-idx) "is-selected")}])
+           matching-entities)])]
 
      (for [attribute attributes]
        (let [value (get entity attribute)]
@@ -126,5 +146,5 @@
        [:div.attribute {:data-node "attribute" :data-name (full-name key)}
         [:div.attribute-name key]
         [:div.attribute-value
-          [:div.literal-value (pr-str value)]]])]))
+         [:div.literal-value (pr-str value)]]])]))
 

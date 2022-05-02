@@ -20,7 +20,7 @@
 
 (d/transact! conn [{:db/id                todo-inspector-id
                     :inspector/name       "todo"
-                    :inspector/entity     todo-1-id
+                    :inspector/selected-index 0
                     :inspector/attributes [:todo/description :todo/completion :todo/view-mode]
                     :inspector/frameset       todo/frameset}
                    {:db/id            todo-1-id
@@ -37,7 +37,7 @@
                     :todo/view-mode   {:_state :viewing}}
                    {:db/id todo-list-inspector-id
                     :inspector/name "todo-list"
-                    :inspector/entity todo-list-id
+                    :inspector/selected-index 0
                     :inspector/attributes [:todo-list/todos]
                     :inspector/frameset todo-list/frameset}
                    {:db/id todo-list-id
