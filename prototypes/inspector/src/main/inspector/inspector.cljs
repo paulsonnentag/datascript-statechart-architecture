@@ -80,6 +80,9 @@
 (defn machine-view [state machine]
   [state-view state nil machine])
 
+(defn full-name [keyword]
+  (subs (str keyword) 1))
+
 (defn view [e]
   (let [{name       :inspector/name
          entity     :inspector/entity
@@ -107,20 +110,21 @@
      (for [attribute attributes]
        (let [value (get entity attribute)]
          ^{:key attribute}
-         [:div.attribute
+         [:div.attribute {:data-node "attribute" :data-name (full-name attribute)}
           [:div.attribute-name attribute]
           [:div.attribute-value
            (if (:_state value)
              [machine-view value (get-in @db/schema [attribute :machine])]
              [:div.literal-value (pr-str value)])]]))
 
-     [:div.attribute
+     [:div.attribute {:data-node "attribute" :data-name "view"}
       [:div.attribute-name "view"]
       [:div.attribute-value [view-view entity-id frameset]]]
 
      (for [[key value] (seq rest-entity)]
        ^{:key key}
-       [:div.attribute
+       [:div.attribute {:data-node "attribute" :data-name (full-name key)}
         [:div.attribute-name key]
-        [:div.attribute-value (pr-str value)]])]))
+        [:div.attribute-value
+          [:div.literal-value (pr-str value)]]])]))
 
