@@ -138,7 +138,9 @@
                                                                                :todo/temp-description] e))
                     done? (fsm/matches completion :done)
                     editing? (fsm/matches view-mode :editing)]
-                [:div.todo {:data-db-id e :data-node "todo"}
+                [:div.todo {:data-db-id e
+                            :data-node "todo"
+                            :class (when done? "is-done")}
                  [:input {:data-node "checkbox"
                           :type      "checkbox"
                           :checked   done?

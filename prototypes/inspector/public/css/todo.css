@@ -6,6 +6,10 @@
   height: 35px;
 }
 
+.todo.is-done {
+  text-decoration: line-through;
+}
+
 .todo > input {
   font-size: inherit;
 }
