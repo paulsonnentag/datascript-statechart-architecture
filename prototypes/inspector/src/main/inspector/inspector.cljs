@@ -32,18 +32,18 @@
           ^{:key name}
           [frame-view view current name variation])])]))
 
-(defn view-view [e frameset]
+(defn view-view [e frameset expanded?]
   (let [view (:view frameset)]
     [:div.view-value
      [:div.view-value-preview
       [view e]]
-     [:div.view-value-frames
-      [frame-view view e "base" frameset]]]))
+     (when expanded?
+       [:div.view-value-frames
+        [frame-view view e "base" frameset]])]))
 
 (on :click [:inspector :attribute :action]
     (fn [{:keys [inspector attribute action]}]
-      (let [inspector-id (:db/id inspector)
-            {{selected-entity-id :db/id} :inspector/entity} (d/pull @conn [:inspector/entity] inspector-id)
+      (let [selected-entity-id (-> inspector :selectedEntityId js/parseInt)
             attribute-name (-> attribute :name keyword)
             action-name (-> action :name keyword)]
         (events/trigger! selected-entity-id attribute-name action-name))))
@@ -77,11 +77,37 @@
         (for [[name substate-def] (seq substate-defs)]
           ^{:key name} [state-view state name substate-def])])]))
 
-(defn machine-view [state machine]
-  [state-view state nil machine])
+(defn machine-view [state machine expanded?]
+  (if expanded?
+    [state-view state nil machine]
+    [:div.state (:_state state)]))
 
 (defn full-name [keyword]
   (subs (str keyword) 1))
+
+(defn attribute-view [e name value expanded?]
+  (let [state? (:_state value)
+        frameset? (fn? (:view value))
+        expandable? (or state? frameset?)]
+
+    [:div.attribute
+     {:class     [(when expandable? "is-expandable")
+                  (when (and (not frameset?) (not expanded?)) "is-inline")]
+      :data-node "attribute"
+      :data-name (full-name name)}
+
+     (when expandable?
+       [:button.attribute-expand-button
+        {:class     (when expanded? "is-expanded")
+         :data-node "expand-button"}])
+
+     [:div.attribute-entry
+      [:div.attribute-name name]
+      [:div.attribute-value
+       (cond
+         state? [machine-view value (get-in @db/schema [name :machine]) expanded?]
+         frameset? [view-view e value expanded?]
+         :else [:div.attribute-literal-value (pr-str value)])]]]))
 
 (on :click [:inspector :dot-selection :dot]
     (fn [{:keys [inspector dot]}]
@@ -89,17 +115,28 @@
             dot-idx (-> dot :idx js/parseInt)]
         (p/transact! conn [[:db/add inspector-id :inspector/selected-index dot-idx]]))))
 
-(defn view [e]
-  (let [{name         :inspector/name
-         selected-idx :inspector/selected-index
-         frameset     :inspector/frameset
-         attributes   :inspector/attributes} @(p/pull
-                                                conn
-                                                [:inspector/name
-                                                 :inspector/attributes
-                                                 :inspector/frameset
-                                                 :inspector/selected-index] e)
+(on :click [:inspector :attribute :expand-button]
+    (fn [{:keys [inspector attribute]}]
+      (let [inspector-id (:db/id inspector)
+            {expanded-attributes :inspector/expanded-attributes} (d/pull @conn [:inspector/expanded-attributes] inspector-id)
+            attribute-name (-> attribute :name keyword)
+            new-expanded-attributes (if (contains? expanded-attributes attribute-name)
+                                      (disj expanded-attributes attribute-name)
+                                      (conj expanded-attributes attribute-name))]
+        (p/transact! conn [[:db/add inspector-id :inspector/expanded-attributes new-expanded-attributes]]))))
 
+(defn view [e]
+  (let [{name                :inspector/name
+         selected-idx        :inspector/selected-index
+         frameset            :inspector/frameset
+         attributes          :inspector/attributes
+         expanded-attributes :inspector/expanded-attributes} @(p/pull
+                                                                conn
+                                                                [:inspector/name
+                                                                 :inspector/attributes
+                                                                 :inspector/expanded-attributes
+                                                                 :inspector/frameset
+                                                                 :inspector/selected-index] e)
 
         matching-entities @(p/q (into [:find ['?e '...]
                                        :where] (for [attribute attributes]
@@ -111,10 +148,9 @@
 
         rest-entity (apply dissoc entity :db/id attributes)]
 
-    [:div.inspector {:data-node "inspector" :data-db-id e}
+    [:div.inspector {:data-node "inspector" :data-db-id e :data-selected-entity-id entity-id}
      [:div.inspector-header
       [:h1.inspector-title name]
-
 
       (when (> (count matching-entities) 1)
         [:div.dot-selection {:data-node "dot-selection"}
@@ -130,21 +166,11 @@
      (for [attribute attributes]
        (let [value (get entity attribute)]
          ^{:key attribute}
-         [:div.attribute {:data-node "attribute" :data-name (full-name attribute)}
-          [:div.attribute-name attribute]
-          [:div.attribute-value
-           (if (:_state value)
-             [machine-view value (get-in @db/schema [attribute :machine])]
-             [:div.literal-value (pr-str value)])]]))
-
-     [:div.attribute {:data-node "attribute" :data-name "view"}
-      [:div.attribute-name "view"]
-      [:div.attribute-value [view-view entity-id frameset]]]
+         [attribute-view entity-id attribute value (contains? expanded-attributes attribute)]))
 
      (for [[key value] (seq rest-entity)]
        ^{:key key}
-       [:div.attribute {:data-node "attribute" :data-name (full-name key)}
-        [:div.attribute-name key]
-        [:div.attribute-value
-         [:div.literal-value (pr-str value)]]])]))
+       [attribute-view entity-id key value (contains? expanded-attributes key)])
+
+     [attribute-view entity-id :view frameset (contains? expanded-attributes :view)]]))
 

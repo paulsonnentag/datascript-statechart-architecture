@@ -18,11 +18,12 @@
 
 (p/posh! conn)
 
-(d/transact! conn [{:db/id                todo-inspector-id
-                    :inspector/name       "todo"
-                    :inspector/selected-index 0
-                    :inspector/attributes [:todo/description :todo/completion :todo/view-mode]
-                    :inspector/frameset       todo/frameset}
+(d/transact! conn [{:db/id                         todo-inspector-id
+                    :inspector/name                "todo"
+                    :inspector/selected-index      0
+                    :inspector/attributes          [:todo/description :todo/completion :todo/view-mode]
+                    :inspector/frameset            todo/frameset
+                    :inspector/expanded-attributes #{:todo/completion}}
                    {:db/id            todo-1-id
                     :todo/description "Do something"
                     :todo/completion  {:_state :pending}
@@ -35,12 +36,13 @@
                     :todo/description "Do another thing"
                     :todo/completion  {:_state :pending}
                     :todo/view-mode   {:_state :viewing}}
-                   {:db/id todo-list-inspector-id
-                    :inspector/name "todo-list"
-                    :inspector/selected-index 0
-                    :inspector/attributes [:todo-list/todos]
-                    :inspector/frameset todo-list/frameset}
-                   {:db/id todo-list-id
+                   {:db/id                         todo-list-inspector-id
+                    :inspector/name                "todo-list"
+                    :inspector/selected-index      0
+                    :inspector/attributes          [:todo-list/todos]
+                    :inspector/frameset            todo-list/frameset
+                    :inspector/expanded-attributes #{}}
+                   {:db/id           todo-list-id
                     :todo-list/todos [2 3 4]}])
 
 (defn app []

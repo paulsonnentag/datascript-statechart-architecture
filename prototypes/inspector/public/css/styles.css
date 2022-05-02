@@ -36,26 +36,6 @@ body {
   margin: 0;
 }
 
-
-.attribute {
-  display: flex;
-  gap: 8px;
-  flex-direction: column;
-}
-
-.attribute.is-inline {
-  flex-direction: row;
-}
-
-.literal-value {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  width: fit-content;
-  padding: 4px;
-  font-family: 'Roboto Mono', monospace;
-}
-
 .state {
   background: #fff;
   border: 1px solid #ddd;
