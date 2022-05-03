@@ -23,7 +23,7 @@
                     :inspector/selected-index      0
                     :inspector/attributes          [:todo/description :todo/completion :todo/view-mode]
                     :inspector/frameset            todo/frameset
-                    :inspector/expanded-attributes #{:todo/completion}}
+                    :inspector/expanded-attributes #{:todo/completion :view}}
                    {:db/id            todo-1-id
                     :todo/description "Do something"
                     :todo/completion  {:_state :pending}

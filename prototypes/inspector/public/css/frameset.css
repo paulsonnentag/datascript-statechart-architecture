@@ -20,7 +20,11 @@
 }
 
 .frame-variation.is-active > .frame-name {
-  color: #0074d9;
+  color: var(--highlight);
+}
+
+.frame-variation.is-selected > .frame {
+  border-color: var(--highlight);
 }
 
 .frameset {

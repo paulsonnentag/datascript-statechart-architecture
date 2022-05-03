@@ -1,16 +1,28 @@
 (ns inspector.inspector
   (:require [posh.reagent :as p]
+            [reagent.core :as r]
             [datascript.core :as d]
             [statecharts.core :as fsm]
             [inspector.events :as events :refer [on]]
             [inspector.db :as db :refer [conn]]))
 
-(defn frame-view [view current name frame]
+(defn frame-view [{:keys [view current name frame selected-path path on-select-path]}]
   (let [{:keys [variations example condition]} frame
         active? (or (nil? condition)
-                    (condition current))]
+                    (condition current))
+        in-selected-path? (= name (first selected-path))
+        child-selected-path (if in-selected-path?
+                              (rest selected-path)
+                              [])
+        selected? (and in-selected-path?
+                       (= (count selected-path) 1))]
     [:div.frame-group
-     [:div.frame-variation {:class (when active? "is-active")}
+     [:div.frame-variation
+      {:class    [(when active? "is-active")
+                  (when selected? "is-selected")]
+       :on-click (fn [evt]
+                   (.stopPropagation evt)
+                   (on-select-path path))}
       [:div.frame-name name]
       [:div.frame
        [view example]]]
@@ -19,18 +31,34 @@
        [:div.frame-variations
         (for [[name variation] (seq variations)]
           ^{:key name}
-          [frame-view view current name variation])])]))
+          [frame-view {:view           view
+                       :current        current
+                       :name           name
+                       :frame          variation
+                       :selected-path  child-selected-path
+                       :path           (conj path name)
+                       :on-select-path on-select-path}])])]))
 
-(defn view-view [e frameset expanded?]
-  (let [view (:view frameset)]
-    [:div.view-value
-     [:div.frame
-      [view e]]
 
-      (when expanded?
-        [:<>
-        [:div.view-value-divider]
-        [frame-view view e "base" frameset]])]))
+(defn view-view []
+  (let [selected-path (r/atom [])
+        on-select-path #(reset! selected-path %)]
+    (fn [e frameset expanded?]
+      (let [view (:view frameset)]
+        [:div.view-value
+         [:div.frame
+          [view e]]
+
+         (when expanded?
+           [:<>
+            [:div.view-value-divider]
+            [frame-view {:view           view
+                         :current        e
+                         :name           :base
+                         :frame          frameset
+                         :selected-path  @selected-path
+                         :path           [:base]
+                         :on-select-path on-select-path}]])]))))
 
 (on :click [:inspector :attribute :action]
     (fn [{:keys [inspector attribute action]}]
