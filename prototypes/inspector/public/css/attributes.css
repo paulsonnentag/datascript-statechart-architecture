@@ -1,0 +1,64 @@
+.attributes {
+  border-collapse: collapse;
+}
+
+.attribute {
+  vertical-align: top;
+}
+
+.attribute > th,
+.attribute > td {
+  padding: 8px;
+  border: 1px solid var(--gray4);
+}
+
+.attribute.is-expandable > th,
+.attribute.is-expandable > td {
+  padding: 4px;
+}
+
+.attribute > td {
+  vertical-align: middle;
+}
+
+.attribute > th {
+  text-align: left;
+  width: 0.1%;
+  white-space: nowrap;
+}
+
+.attribute-name {
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+}
+
+.attribute.is-expandable .attribute-name {
+  padding-left: 0;
+  padding-top: 8px;
+}
+
+.attribute-expand-button {
+  width: 16px;
+  height: 19px;
+  background: var(--gray4);
+  mask-position: center;
+  -webkit-mask-position: center;
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-image: url('../assets/caret-forward.svg');
+  -webkit-mask-image: url('../assets/caret-forward.svg');
+  transition: transform ease-in 100ms;
+  transform: rotate(0);
+  margin-right: 4px;
+}
+
+.attribute-expand-button.is-expanded {
+  transform: rotate(90deg);
+}
+
+.attribute-literal-value {
+  font-family: "Roboto Mono", monospace;
+}

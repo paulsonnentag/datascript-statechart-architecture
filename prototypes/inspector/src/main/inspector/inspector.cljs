@@ -35,10 +35,12 @@
 (defn view-view [e frameset expanded?]
   (let [view (:view frameset)]
     [:div.view-value
-     [:div.view-value-preview
+     [:div.frame
       [view e]]
-     (when expanded?
-       [:div.view-value-frames
+
+      (when expanded?
+        [:<>
+        [:div.view-value-divider]
         [frame-view view e "base" frameset]])]))
 
 (on :click [:inspector :attribute :action]
@@ -90,24 +92,25 @@
         frameset? (fn? (:view value))
         expandable? (or state? frameset?)]
 
-    [:div.attribute
+    [:tr.attribute
      {:class     [(when expandable? "is-expandable")
                   (when (and (not frameset?) (not expanded?)) "is-inline")]
       :data-node "attribute"
       :data-name (full-name name)}
 
-     (when expandable?
-       [:button.attribute-expand-button
-        {:class     (when expanded? "is-expanded")
-         :data-node "expand-button"}])
+     [:th
+      [:div.attribute-name
+       (when expandable?
+         [:button.attribute-expand-button
+          {:class     (when expanded? "is-expanded")
+           :data-node "expand-button"}])
+       name]]
 
-     [:div.attribute-entry
-      [:div.attribute-name name]
-      [:div.attribute-value
-       (cond
-         state? [machine-view value (get-in @db/schema [name :machine]) expanded?]
-         frameset? [view-view e value expanded?]
-         :else [:div.attribute-literal-value (pr-str value)])]]]))
+     [:td
+      (cond
+        state? [machine-view value (get-in @db/schema [name :machine]) expanded?]
+        frameset? [view-view e value expanded?]
+        :else [:div.attribute-literal-value (pr-str value)])]]))
 
 (on :click [:inspector :dot-selection :dot]
     (fn [{:keys [inspector dot]}]
@@ -163,14 +166,16 @@
                :class     (when (= idx selected-idx) "is-selected")}])
            matching-entities)])]
 
-     (for [attribute attributes]
-       (let [value (get entity attribute)]
-         ^{:key attribute}
-         [attribute-view entity-id attribute value (contains? expanded-attributes attribute)]))
+     [:table.attributes
+      [:tbody
+       (for [attribute attributes]
+         (let [value (get entity attribute)]
+           ^{:key attribute}
+           [attribute-view entity-id attribute value (contains? expanded-attributes attribute)]))
 
-     (for [[key value] (seq rest-entity)]
-       ^{:key key}
-       [attribute-view entity-id key value (contains? expanded-attributes key)])
+       (for [[key value] (seq rest-entity)]
+         ^{:key key}
+         [attribute-view entity-id key value (contains? expanded-attributes key)])
 
-     [attribute-view entity-id :view frameset (contains? expanded-attributes :view)]]))
+       [attribute-view entity-id :view frameset (contains? expanded-attributes :view)]]]]))
 

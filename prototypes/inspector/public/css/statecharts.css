@@ -1,0 +1,46 @@
+.state {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 8px;
+  width: fit-content;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.state.is-active {
+  border-color: var(--highlight);
+}
+
+.state-name {
+  font-weight: normal;
+  font-size: 16px;
+}
+
+.state-substates {
+  display: flex;
+  gap: 8px;
+}
+
+.action {
+  display: flex;
+  gap: 4px;
+}
+
+.action-name {
+  border: 0;
+  padding: inherit;
+  font-size: inherit;
+  color: #aaaaaa;
+  background: none;
+}
+
+.action-name.is-active {
+  color: var(--highlight);
+}
+
+.action-target {
+  color: #aaaaaa;
+}

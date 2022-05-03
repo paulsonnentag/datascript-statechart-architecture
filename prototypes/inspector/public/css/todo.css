@@ -13,3 +13,12 @@
 .todo > input {
   font-size: inherit;
 }
+
+.todo-list {
+  padding: 16px;
+}
+
+.todo-list-title {
+  font-size: 1.2em;
+  font-weight: normal;
+}
