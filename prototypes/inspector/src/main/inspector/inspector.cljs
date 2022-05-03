@@ -5,17 +5,6 @@
             [inspector.events :as events :refer [on]]
             [inspector.db :as db :refer [conn]]))
 
-(defn replace-entity-with-example! [e example]
-  (let [retract-keys (-> (d/pull @conn '[*] e)
-                         (dissoc :db/id)
-                         keys)
-        retract-tx (for [key retract-keys]
-                     [:db.fn/retractAttribute key])
-        add-tx (for [[key value] (seq example)]
-                 [:db/add e key value])]
-
-    (p/transact! conn (concat retract-tx add-tx))))
-
 (defn frame-view [view current name frame]
   (let [{:keys [variations example condition]} frame
         active? (or (nil? condition)
@@ -23,7 +12,7 @@
     [:div.frame-group
      [:div.frame-variation {:class (when active? "is-active")}
       [:div.frame-name name]
-      [:div.frame {:on-click #(replace-entity-with-example! current example)} ; TODO: replace with event selector
+      [:div.frame
        [view example]]]
 
      (when-not (empty? variations)
