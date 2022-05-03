@@ -1,3 +1,12 @@
+.with-source {
+  display: flex;
+}
+
+.source {
+  margin-left: 8px;
+  border-left: 1px solid var(--gray4);
+}
+
 .view-value {
   display: flex;
   flex-direction: column;

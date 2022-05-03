@@ -39,26 +39,43 @@
                        :path           (conj path name)
                        :on-select-path on-select-path}])])]))
 
+(defn lookup-path [frameset path]
+  (if (or (empty? path)
+          (not= (first path) :base))
+    nil
+    (loop [frameset frameset
+           subpath (rest path)]
+      (if (empty? subpath)
+        frameset
+        (recur (get-in frameset [:variations (first subpath)])
+               (rest subpath))))))
 
 (defn view-view []
-  (let [selected-path (r/atom [])
-        on-select-path #(reset! selected-path %)]
+  (let [selected-path! (r/atom [])
+        on-select-path #(reset! selected-path! %)]
     (fn [e frameset expanded?]
-      (let [view (:view frameset)]
-        [:div.view-value
-         [:div.frame
-          [view e]]
+      (let [view (:view frameset)
+            selected-path @selected-path!]
+        [:div.with-source
+         [:div.view-value
+          [:div.frame
+           [view e]]
 
-         (when expanded?
-           [:<>
-            [:div.view-value-divider]
-            [frame-view {:view           view
-                         :current        e
-                         :name           :base
-                         :frame          frameset
-                         :selected-path  @selected-path
-                         :path           [:base]
-                         :on-select-path on-select-path}]])]))))
+          (when expanded?
+            [:<>
+             [:div.view-value-divider]
+             [frame-view {:view           view
+                          :current        e
+                          :name           :base
+                          :frame          frameset
+                          :selected-path  selected-path
+                          :path           [:base]
+                          :on-select-path on-select-path}]])]
+
+         (when-not (empty? selected-path)
+           (let [frame (lookup-path frameset selected-path)]
+             [:pre.source
+              (:source frame)]))]))))
 
 (on :click [:inspector :attribute :action]
     (fn [{:keys [inspector attribute action]}]

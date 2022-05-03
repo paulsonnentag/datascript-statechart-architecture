@@ -19,8 +19,8 @@
                        {todos :todo-list/todos} (if in-frameset?
                                                   e
                                                   @(p/pull conn [:todo-list/todos] e))]
-                   [:div.todo-list {}
-                    [:h1.todo-list-title "Todos"]
+                   [:div.p-3 {}
+                    [:h1 "Todos"]
                     (for [todo todos]
                       (let [todo-id (get-db-id todo)]
                         ^{:key todo-id}
