@@ -51,11 +51,15 @@
                (rest subpath))))))
 
 (defn view-view []
-  (let [selected-path! (r/atom [])
+  (let [selected-path! (r/atom [:base])
+        selected-tab! (r/atom :view)
         on-select-path #(reset! selected-path! %)]
     (fn [e frameset expanded?]
       (let [view (:view frameset)
-            selected-path @selected-path!]
+            selected-path @selected-path!
+            selected-tab @selected-tab!
+            view-selected? (= selected-tab :view)
+            example-selected? (= selected-tab :example)]
         [:div.with-source
          [:div.view-value
           [:div.frame
@@ -72,10 +76,19 @@
                           :path           [:base]
                           :on-select-path on-select-path}]])]
 
-         (when-not (empty? selected-path)
+         (when (and expanded?
+                    (not (empty? selected-path)))
            (let [frame (lookup-path frameset selected-path)]
-             [:pre.source
-              (:source frame)]))]))))
+             [:div.source
+              [:div.source-tabs
+               [:button.source-tab {:class    (when view-selected? "is-selected")
+                                    :on-click #(reset! selected-tab! :view)} "view"]
+               [:button.source-tab {:class    (when example-selected? "is-selected")
+                                    :on-click #(reset! selected-tab! :example)} "example"]]
+              [:pre.source-content
+               (cond
+                 view-selected? (:frame-source frame)
+                 example-selected? (:example-source frame))]]))]))))
 
 (on :click [:inspector :attribute :action]
     (fn [{:keys [inspector attribute action]}]

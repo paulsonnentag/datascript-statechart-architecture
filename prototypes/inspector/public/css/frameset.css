@@ -10,6 +10,7 @@
 .view-value {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .view-value-divider {

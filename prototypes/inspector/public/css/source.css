@@ -1,0 +1,28 @@
+.source {
+  padding: 4px;
+  width: 100%;
+}
+
+.source-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.source-tab {
+  border-radius: 10px 10px 0 0;
+  padding: 8px 8px 4px 8px;
+  background: var(--gray2);
+}
+
+.source-tab.is-selected {
+  background: var(--gray3);
+}
+
+.source-content {
+  background: var(--gray3);
+  padding: 8px 0 0 8px;
+  overflow: auto;
+  border-radius: 0 10px 10px 10px;
+  width: 100%;
+  font-family: "Roboto Mono", monospace;
+}
