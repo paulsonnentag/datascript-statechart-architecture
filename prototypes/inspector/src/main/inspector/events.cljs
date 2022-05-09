@@ -4,82 +4,90 @@
             [statecharts.core :as fsm]
             [inspector.db :as db :refer [conn]]))
 
-(defn get-element-stack
-  ([element]
-   (get-element-stack element '()))
+(def empty-selector-group (sorted-set-by #(-> % :selector count -)))
 
-  ([element stack]
-   (let [node (reduce
-                (fn [node [str-key value]]
-                  (let [key (keyword str-key)]
-                    (case key
-                      :dbId (if-let [id (js/parseInt value 10)]
-                              (assoc node :db/id id)
-                              node)
-                      :node (assoc node :node (keyword value))
+(def selector-groups! (atom {}))
 
-                      (assoc node key value))))
-                {}
-                (js/Object.entries (.-dataset element)))]
-     (if (:isRoot node)
-       stack
-       (get-element-stack
-         (.-parentElement element)
-         (if (empty? node)
-           stack
-           (conj stack node)))))))
+(defn add-selector! [attr evt selector cb]
+  (swap!
+    selector-groups!
+    (fn [selector-groups]
+      (let [group (get selector-groups attr empty-selector-group)
+            new-group (conj group {:evt evt :selector selector :cb cb})]
+        (assoc selector-groups attr new-group)))))
 
+(defn clear-selectors! [attr]
+  (swap! selector-groups! #(dissoc % attr)))
 
-(def event-handlers! (atom (sorted-set-by #(-> % :selector count -))))
-
-(defn trigger-stack!
-  ([triggered-evt stack]
-   (trigger-stack! triggered-evt stack nil))
-  ([triggered-evt stack dom-evt]
-   (loop [handlers @event-handlers!]
+(defn dispatch!
+  ([evt attr frame base-ctx]
+   (loop [handlers (-> @selector-groups! (get attr))]
      (when-let [handler (first handlers)]
-       (let [{:keys [cb selector evt]} handler
-             continue-flag (when (= evt triggered-evt)
-                             (loop [ctx {}
-                                    stack stack
+       (let [{:keys [cb selector] handler-evt :evt} handler
+             continue-flag (when (= handler-evt evt)
+                             (loop [ctx base-ctx
+                                    frame frame
                                     selector selector]
                                (let [name (last selector)]
                                  (if name
-                                   (let [node (last stack)]
+                                   (let [node (last frame)]
                                      (when node
-                                       (if (= (:node node) name)
+                                       (if (= (:name node) name)
                                          (recur (assoc ctx name node)
-                                                (drop-last stack)
+                                                (drop-last frame)
                                                 (drop-last selector))
                                          (recur ctx
-                                                (drop-last stack)
+                                                (drop-last frame)
                                                 selector))))
-
-                                   (cb ctx dom-evt)))))]
+                                   (cb ctx)))))]
          (when (not (false? continue-flag))
            (recur (rest handlers))))))))
 
-(defn trigger!
-  ([e property type]
-   (trigger! e property type {}))
+(defn get-frame
+  ([element]
+   (get-frame element '()))
 
-  ([e property type data]
-   (let [entity (d/pull @conn [property] e)
-         machine (get-in @db/schema [property :machine])]
+  ([element frame]
+   (when element
+     (let [entry (reduce
+                   (fn [entry [str-key value]]
+                     (let [key (keyword str-key)]
+                       (case key
+                         :dbId (if-let [id (js/parseInt value 10)]
+                                 (assoc entry :db/id id)
+                                 entry)
+                         :name (assoc entry :name (keyword value))
+                         (assoc entry key value))))
+                   {:element element}
+                   (js/Object.entries (.-dataset element)))
+
+           new-frame (if (empty? entry)
+                       frame
+                       (conj frame entry))]
+
+       (if (:db/id entry)
+         new-frame
+         (get-frame (.-parentElement element) new-frame))))))
+
+(defn dispatch-dom-evt! [evt data]
+  (when-let [[component & frame] (get-frame (.-target data))]
+    (let [component-name (:name component)
+          attr (keyword component-name "view")
+          ctx (-> {:evt data}
+                  (assoc component-name component))]
+      (dispatch! evt attr frame ctx))))
+
+(defn trigger!
+  ([e attr type]
+   (trigger! e attr type {}))
+
+  ([e attr type data]
+   (let [entity (d/pull @conn [attr] e)
+         machine (get-in @db/schema [attr :machine])]
      (assert machine "no statemachine defined")
-     (if-let [state (get entity property)]
+     (if-let [state (get entity attr)]
        (let [event (assoc data :e e :type type)
              new-state (fsm/transition machine state event)]
-         (p/transact! conn [[:db/add e property new-state]]))
-       (print "ignore event" entity e property type)))))
+         (p/transact! conn [[:db/add e attr new-state]]))
+       (print "ignore event" entity e attr type)))))
 
-(defn on [evt selector cb]
-  (swap!
-    event-handlers!
-    #(conj % {:evt      evt
-              :selector selector
-              :cb       cb})))
-
-(defn trigger-dom-evt! [name evt]
-  (let [stack (get-element-stack (.-target evt))]
-    (trigger-stack! name stack evt)))

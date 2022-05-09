@@ -47,10 +47,10 @@
 
 (defn app []
   [:div {:data-is-root true
-         :on-click     #(events/trigger-dom-evt! :click %)
-         :on-blur      #(events/trigger-dom-evt! :blur %)
-         :on-key-down  #(events/trigger-dom-evt! :key-down %)
-         :on-change    #(events/trigger-dom-evt! :change %)}
+         :on-click     #(events/dispatch-dom-evt! :click %)
+         :on-blur      #(events/dispatch-dom-evt! :blur %)
+         :on-key-down  #(events/dispatch-dom-evt! :key-down %)
+         :on-change    #(events/dispatch-dom-evt! :change %)}
    [inspector/view todo-list-inspector-id]
    [inspector/view todo-inspector-id]])
 
