@@ -6,6 +6,34 @@
             [inspector.events :as events]
             [inspector.db :as db :refer [conn]]))
 
+(events/clear-selectors! :inspector/view)
+
+(events/add-selector!
+  :inspector/view :click [:dot-selection :dot]
+  (fn [{:keys [inspector dot]}]
+    (let [inspector-id (:db/id inspector)
+          dot-idx (-> dot :idx js/parseInt)]
+      (p/transact! conn [[:db/add inspector-id :inspector/selected-index dot-idx]]))))
+
+(events/add-selector!
+  :inspector/view :click [:attribute :expand-button]
+  (fn [{:keys [inspector attribute]}]
+    (let [inspector-id (:db/id inspector)
+          {expanded-attributes :inspector/expanded-attributes} (d/pull @conn [:inspector/expanded-attributes] inspector-id)
+          attribute-name (-> attribute :attr keyword)
+          new-expanded-attributes (if (contains? expanded-attributes attribute-name)
+                                    (disj expanded-attributes attribute-name)
+                                    (conj expanded-attributes attribute-name))]
+      (p/transact! conn [[:db/add inspector-id :inspector/expanded-attributes new-expanded-attributes]]))))
+
+(events/add-selector!
+  :inspector/view :click [:attribute :action]
+  (fn [{:keys [inspector attribute action]}]
+    (let [selected-entity-id (-> inspector :selectedEntityId js/parseInt)
+          attribute-name (-> attribute :attr keyword)
+          action-name (-> action :action keyword)]
+      (events/trigger! selected-entity-id attribute-name action-name))))
+
 (defn frame-view [{:keys [view current name frame selected-path path on-select-path]}]
   (let [{:keys [variations example condition]} frame
         active? (or (nil? condition)
@@ -90,13 +118,6 @@
                  view-selected? (:frame-source frame)
                  example-selected? (:example-source frame))]]))]))))
 
-(comment
-  (on :click [:inspector :attribute :action]
-      (fn [{:keys [inspector attribute action]}]
-        (let [selected-entity-id (-> inspector :selectedEntityId js/parseInt)
-              attribute-name (-> attribute :name keyword)
-              action-name (-> action :name keyword)]
-          (events/trigger! selected-entity-id attribute-name action-name)))))
 
 (defn state-view [state name state-def]
   (let [{substate-defs :states
@@ -159,24 +180,6 @@
         state? [machine-view value (get-in @db/schema [name :machine]) expanded?]
         frameset? [view-view e value expanded?]
         :else [:div.attribute-literal-value (pr-str value)])]]))
-
-(comment
-
-  (on :click [:inspector :dot-selection :dot]
-      (fn [{:keys [inspector dot]}]
-        (let [inspector-id (:db/id inspector)
-              dot-idx (-> dot :idx js/parseInt)]
-          (p/transact! conn [[:db/add inspector-id :inspector/selected-index dot-idx]]))))
-
-  (on :click [:inspector :attribute :expand-button]
-      (fn [{:keys [inspector attribute]}]
-        (let [inspector-id (:db/id inspector)
-              {expanded-attributes :inspector/expanded-attributes} (d/pull @conn [:inspector/expanded-attributes] inspector-id)
-              attribute-name (-> attribute :name keyword)
-              new-expanded-attributes (if (contains? expanded-attributes attribute-name)
-                                        (disj expanded-attributes attribute-name)
-                                        (conj expanded-attributes attribute-name))]
-          (p/transact! conn [[:db/add inspector-id :inspector/expanded-attributes new-expanded-attributes]])))))
 
 (defn view [e]
   (let [{name                :inspector/name

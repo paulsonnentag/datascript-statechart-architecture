@@ -58,7 +58,7 @@
                                  entry)
                          :name (assoc entry :name (keyword value))
                          (assoc entry key value))))
-                   {:element element}
+                   {}
                    (js/Object.entries (.-dataset element)))
 
            new-frame (if (empty? entry)
