@@ -46,8 +46,7 @@
                     :todo-list/todos [2 3 4]}])
 
 (defn app []
-  [:div {:data-is-root true
-         :on-click     #(events/dispatch-dom-evt! :click %)
+  [:div {:on-click     #(events/dispatch-dom-evt! :click %)
          :on-blur      #(events/dispatch-dom-evt! :blur %)
          :on-key-down  #(events/dispatch-dom-evt! :key-down %)
          :on-change    #(events/dispatch-dom-evt! :change %)}

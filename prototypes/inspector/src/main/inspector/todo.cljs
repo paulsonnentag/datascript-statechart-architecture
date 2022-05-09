@@ -65,9 +65,10 @@
 
 (db/register-machine! :todo/view-mode view-mode-machine)
 
-(events/clear-selectors! :todo/view)
 
 ; VIEW
+
+(events/clear-selectors! :todo/view)
 
 (events/add-selector!
   :todo/view :click [:checkbox]
@@ -97,6 +98,9 @@
 
 
 ; VIEW-MODE
+
+
+(events/clear-selectors! :todo/view-mode)
 
 (events/add-selector!
   :todo/view-mode :enter [:editing]
