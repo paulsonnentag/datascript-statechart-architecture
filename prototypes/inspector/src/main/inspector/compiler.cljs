@@ -1,7 +1,6 @@
 (ns inspector.compiler
   (:require [cljs.js :as cljs]
-            [shadow.cljs.bootstrap.browser :as bootstrap]
-            [reagent.core :as r]))
+            [shadow.cljs.bootstrap.browser :as bootstrap]))
 
 (defonce state (cljs/empty-state))
 
@@ -14,14 +13,14 @@
 
 (defonce !ready? (atom false))
 
-(defn eval-expr [source cb]
+(defn eval-src [src cb]
   (let [id (js/Math.random)]
     (if @!ready?
-      (cljs/eval-str state (str source) nil options cb)
+      (cljs/eval-str state (str src) nil options cb)
       (add-watch !ready? id (fn [_ {ready? :val}]
                               (when ready?
                                 (remove-watch !ready? id)
-                                (cljs/eval-str state (str source) nil options cb)))))))
+                                (cljs/eval-str state (str src) nil options cb)))))))
 
 (defn init [cb]
   (bootstrap/init

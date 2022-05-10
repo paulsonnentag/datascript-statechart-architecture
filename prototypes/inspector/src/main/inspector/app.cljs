@@ -5,7 +5,7 @@
             [posh.reagent :as p]
             [inspector.events :as events]
             [inspector.inspector :as inspector]
-            [inspector.db :refer [conn]]
+            [inspector.db :as db :refer [conn]]
             [inspector.todo :as todo]
             [inspector.todo-list :as todo-list]
             [inspector.compiler :as compiler]))

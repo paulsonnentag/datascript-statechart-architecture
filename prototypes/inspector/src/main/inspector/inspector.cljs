@@ -4,7 +4,8 @@
             [datascript.core :as d]
             [statecharts.core :as fsm]
             [inspector.events :as events]
-            [inspector.db :as db :refer [conn]]))
+            [inspector.db :as db :refer [conn]]
+            [inspector.helpers :refer [input-value]]))
 
 (events/clear-selectors! :inspector/view)
 
@@ -33,6 +34,13 @@
           attribute-name (-> attribute :attr keyword)
           action-name (-> action :action keyword)]
       (events/trigger! selected-entity-id attribute-name action-name))))
+
+(events/add-selector!
+  :inspector/view :change [:attribute :event-selectors-src]
+  (fn [{:keys [attribute evt]}]
+    (let [attr (-> attribute :attr keyword)
+          new-src (input-value evt)]
+      (events/update-event-selectors-src attr new-src))))
 
 (defn frame-view [{:keys [view current name frame selected-path path on-select-path]}]
   (let [{:keys [variations example condition]} frame
@@ -78,6 +86,11 @@
         (recur (get-in frameset [:variations (first subpath)])
                (rest subpath))))))
 
+(defn ex-root-cause [ex]
+  (if-let [cause-ex (ex-cause ex)]
+    (ex-root-cause cause-ex)
+    ex))
+
 (defn view-view []
   (let [selected-path! (r/atom [:base])
         selected-tab! (r/atom :events)
@@ -114,13 +127,22 @@
                                     :on-click #(reset! selected-tab! :view)} "view"]
                [:button.source-tab {:class    (when example-selected? "is-selected")
                                     :on-click #(reset! selected-tab! :example)} "example"]
-               [:button.source-tab {:class (when events-selected? "is-selected")
+               [:button.source-tab {:class    (when events-selected? "is-selected")
                                     :on-click #(reset! selected-tab! :events)} "events"]]
-              [:pre.source-content
-               (cond
-                 view-selected? (:frame-source frame)
-                 example-selected? (:example-source frame)
-                 events-selected? event-selectors-src)]]))]))))
+              (cond
+                view-selected? [:pre.source-content
+                                (:frame-source frame)]
+                example-selected? [:pre.source-content
+                                   (:example-source frame)]
+                events-selected? (let [{:keys [error value]} event-selectors-src]
+                                   [:<>
+                                    [:textarea.source-content
+                                    {:data-name "event-selectors-src"
+                                     :class     (when error "has-errors")
+                                     :value     value
+                                     :on-change #()}]
+                                    [:div.source-error
+                                     (str (ex-message (ex-root-cause error)))]]))]))]))))
 
 
 (defn state-view [state name state-def]

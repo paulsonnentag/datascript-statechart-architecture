@@ -7,4 +7,4 @@
 (defn source-block [forms]
   (->> forms
        (map #(with-out-str (cljs.pprint/pprint %)))
-       (clojure.string/join "\n\n")))
+       (clojure.string/join "\n")))

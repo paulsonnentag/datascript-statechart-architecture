@@ -75,8 +75,6 @@
     '[(ns inspector.user
         (:require [inspector.api :refer [add-selector! clear-selectors! trigger! input-value]]))
 
-      (clear-selectors! :todo/view)
-
       (add-selector!
         :todo/view :click [:checkbox]
         (fn [{:keys [todo]}]
@@ -103,9 +101,7 @@
         (fn [{:keys [todo evt]}]
           (trigger! (:db/id todo) :todo/view-mode :update {:value (input-value evt)})))]))
 
-(db/add-evt-selector-src!
-  :todo/view
-  view-evt-selector-src)
+(events/update-event-selectors-src :todo/view view-evt-selector-src)
 
 ; VIEW-MODE
 
@@ -113,8 +109,6 @@
   (source-block
     '[(ns inspector.user
         (:require [inspector.api :refer [add-selector! clear-selectors! trigger! input-value transact! pull conn]]))
-
-      (clear-selectors! :todo/view-mode)
 
       (add-selector!
         :todo/view-mode :enter [:editing]
@@ -143,9 +137,7 @@
           (let [new-description (:value evt)]
             (transact! conn [[:db/add (:db/id todo) :todo/temp-description new-description]]))))]))
 
-(db/add-evt-selector-src!
-  :todo/view-mode
-  view-mode-evt-selector-src)
+(events/update-event-selectors-src :todo/view-mode view-mode-evt-selector-src)
 
 (def base-frame-source "<div class=\"flex items-center gap-1 p-1\">
   <input #checkbox type=\"checkbox\">

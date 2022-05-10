@@ -2,7 +2,8 @@
   (:require [posh.reagent :as p]
             [datascript.core :as d]
             [statecharts.core :as fsm]
-            [inspector.db :as db :refer [conn]]))
+            [inspector.db :as db :refer [conn]]
+            [inspector.compiler :as compiler]))
 
 (def empty-selector-group (sorted-set-by #(-> % :selector count -)))
 
@@ -42,6 +43,13 @@
                                    (cb ctx)))))]
          (when (not (false? continue-flag))
            (recur (rest handlers))))))))
+
+(defn update-event-selectors-src [attr src]
+  (clear-selectors! attr)
+  (compiler/eval-src src (fn [{error :error}]
+                           (swap! db/schema
+                                  #(assoc-in % [attr :evt-selectors-src] {:value src
+                                                                          :error error})))))
 
 (defn get-frame
   ([element]
