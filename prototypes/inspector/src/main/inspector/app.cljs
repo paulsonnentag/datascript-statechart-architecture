@@ -7,7 +7,8 @@
             [inspector.inspector :as inspector]
             [inspector.db :refer [conn]]
             [inspector.todo :as todo]
-            [inspector.todo-list :as todo-list]))
+            [inspector.todo-list :as todo-list]
+            [inspector.compiler :as compiler]))
 
 (def todo-inspector-id 1)
 (def todo-1-id 2)
@@ -46,12 +47,18 @@
                     :todo-list/todos [2 3 4]}])
 
 (defn app []
-  [:div {:on-click     #(events/dispatch-dom-evt! :click %)
-         :on-blur      #(events/dispatch-dom-evt! :blur %)
-         :on-key-down  #(events/dispatch-dom-evt! :key-down %)
-         :on-change    #(events/dispatch-dom-evt! :change %)}
-   [inspector/view todo-list-inspector-id]
-   [inspector/view todo-inspector-id]])
+  (if @compiler/!ready?
+    [:div {:on-click    #(events/dispatch-dom-evt! :click %)
+           :on-blur     #(events/dispatch-dom-evt! :blur %)
+           :on-key-down #(events/dispatch-dom-evt! :key-down %)
+           :on-change   #(events/dispatch-dom-evt! :change %)}
+     [inspector/view todo-list-inspector-id]
+     [inspector/view todo-inspector-id]]
+    [:div.p-3 "loading ..."]))
+
+(defn render []
+  (dom/render [app] (gdom/getElement "root")))
 
 (defn ^:dev/after-load init []
-  (dom/render [app] (gdom/getElement "root")))
+  (compiler/init render)
+  (render))

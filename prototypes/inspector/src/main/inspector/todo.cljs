@@ -4,7 +4,7 @@
             [statecharts.core :as fsm]
             [inspector.events :as events]
             [inspector.db :as db :refer [conn]]
-            [inspector.helpers :refer [input-value]]))
+            [inspector.helpers :refer [input-value source-block]]))
 
 (def completion-machine
   (fsm/machine
@@ -70,64 +70,82 @@
 
 (events/clear-selectors! :todo/view)
 
-(events/add-selector!
-  :todo/view :click [:checkbox]
-  (fn [{:keys [todo]}]
-    (events/trigger! (:db/id todo) :todo/completion :toggle)))
+(def view-evt-selector-src
+  (source-block
+    '[(ns inspector.user
+        (:require [inspector.api :refer [add-selector! clear-selectors! trigger! input-value]]))
 
-(events/add-selector!
-  :todo/view :click [:label]
-  (fn [{:keys [todo]}]
-    (events/trigger! (:db/id todo) :todo/view-mode :edit)))
+      (clear-selectors! :todo/view)
 
-(events/add-selector!
-  :todo/view :blur [:input]
-  (fn [{:keys [todo]}]
-    (events/trigger! (:db/id todo) :todo/view-mode :save)))
+      (add-selector!
+        :todo/view :click [:checkbox]
+        (fn [{:keys [todo]}]
+          (trigger! (:db/id todo) :todo/completion :toggle)))
 
-(events/add-selector!
-  :todo/view :key-down [:input]
-  (fn [{:keys [todo evt]}]
-    (when (= "Escape" (.-code evt))
-      (events/trigger! (:db/id todo) :todo/view-mode :cancel))))
+      (add-selector!
+        :todo/view :click [:label]
+        (fn [{:keys [todo]}]
+          (trigger! (:db/id todo) :todo/view-mode :edit)))
 
-(events/add-selector!
-  :todo/view :change [:input]
-  (fn [{:keys [todo evt]}]
-    (events/trigger! (:db/id todo) :todo/view-mode :update {:value (input-value evt)})))
+      (add-selector!
+        :todo/view :blur [:input]
+        (fn [{:keys [todo]}]
+          (trigger! (:db/id todo) :todo/view-mode :save)))
 
+      (add-selector!
+        :todo/view :key-down [:input]
+        (fn [{:keys [todo evt]}]
+          (when (= "Escape" (.-code evt))
+            (trigger! (:db/id todo) :todo/view-mode :cancel))))
+
+      (add-selector!
+        :todo/view :change [:input]
+        (fn [{:keys [todo evt]}]
+          (trigger! (:db/id todo) :todo/view-mode :update {:value (input-value evt)})))]))
+
+(db/add-evt-selector-src!
+  :todo/view
+  view-evt-selector-src)
 
 ; VIEW-MODE
 
+(def view-mode-evt-selector-src
+  (source-block
+    '[(ns inspector.user
+        (:require [inspector.api :refer [add-selector! clear-selectors! trigger! input-value transact! pull conn]]))
 
-(events/clear-selectors! :todo/view-mode)
+      (clear-selectors! :todo/view-mode)
 
-(events/add-selector!
-  :todo/view-mode :enter [:editing]
-  (fn [{:keys [todo]}]
-    (let [todo-id (:db/id todo)
-          {description :todo/description} (d/pull @conn [:todo/description] todo-id)]
-      (p/transact! conn [[:db/add todo-id :todo/temp-description description]]))))
+      (add-selector!
+        :todo/view-mode :enter [:editing]
+        (fn [{:keys [todo]}]
+          (let [todo-id (:db/id todo)
+                {description :todo/description} (pull @conn [:todo/description] todo-id)]
+            (transact! conn [[:db/add todo-id :todo/temp-description description]]))))
 
-(events/add-selector!
-  :todo/view-mode :save [:editing]
-  (fn [{:keys [todo]}]
-    (let [todo-id (:db/id todo)
-          {temp-description :todo/temp-description} (d/pull @conn [:todo/temp-description] todo-id)]
-      (p/transact! conn [[:db/add todo-id :todo/description temp-description]
-                         [:db.fn/retractAttribute todo-id :todo/temp-description]]))))
+      (add-selector!
+        :todo/view-mode :save [:editing]
+        (fn [{:keys [todo]}]
+          (let [todo-id (:db/id todo)
+                {temp-description :todo/temp-description} (pull @conn [:todo/temp-description] todo-id)]
+            (transact! conn [[:db/add todo-id :todo/description temp-description]
+                             [:db.fn/retractAttribute todo-id :todo/temp-description]]))))
 
-(events/add-selector!
-  :todo/view-mode :cancel [:editing]
-  (fn [{:keys [todo]}]
-    (let [todo-id (:db/id todo)]
-      (p/transact! conn [[:db.fn/retractAttribute todo-id :todo/temp-description]]))))
+      (add-selector!
+        :todo/view-mode :cancel [:editing]
+        (fn [{:keys [todo]}]
+          (let [todo-id (:db/id todo)]
+            (transact! conn [[:db.fn/retractAttribute todo-id :todo/temp-description]]))))
 
-(events/add-selector!
-  :todo/view-mode :update [:editing]
-  (fn [{:keys [todo evt]}]
-    (let [new-description (:value evt)]
-      (p/transact! conn [[:db/add (:db/id todo) :todo/temp-description new-description]]))))
+      (add-selector!
+        :todo/view-mode :update [:editing]
+        (fn [{:keys [todo evt]}]
+          (let [new-description (:value evt)]
+            (transact! conn [[:db/add (:db/id todo) :todo/temp-description new-description]]))))]))
+
+(db/add-evt-selector-src!
+  :todo/view-mode
+  view-mode-evt-selector-src)
 
 (def base-frame-source "<div class=\"flex items-center gap-1 p-1\">
   <input #checkbox type=\"checkbox\">

@@ -13,6 +13,27 @@
  :dev-http {8080 "public"}
 
  :builds
- {:app
+ {:bootstrap {:target     :bootstrap
+              :output-dir "public/js/bootstrap"
+              :entries    [reagent.core
+                           cljs.js
+                           inspector.api]
+              :compiler-options
+              {:warnings {:infer false}}
+
+              ;; many macro namespaces can't be evaluated in ClojureScript -
+              ;; so we exclude them here to avoid runtime errors. Note that
+              ;; it's ok to include code that consumes Clojure (jvm) macros,
+              ;; but only selfhost-compatible macros can be evaluated "live".
+              :exclude    #{cljs.js}}
+  :browser   {:target           :browser
+              :output-dir       "public/js"
+              :asset-path       "/js"
+              :compiler-options {:optimizations :simple
+                                 :warnings      {:infer false}}
+              :modules          {:base {:init-fn inspector.app/init}}}}
+
+
+ #_{:app
   {:target  :browser
    :modules {:main {:init-fn inspector.app/init}}}}}

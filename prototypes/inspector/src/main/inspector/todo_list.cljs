@@ -7,7 +7,6 @@
 ;TODO: resolve dynamically how a todo item should be rendered
 (def todo-view (:view todo/frameset))
 
-
 (defn get-db-id [{id :db/id :as e}]
   (or id e))
 
@@ -20,9 +19,9 @@
                                                   e
                                                   @(p/pull conn [:todo-list/todos] e))]
                    [:div.p-3 {:data-db-id e
-                              :data-name "todo-list"}
+                              :data-name  "todo-list"}
                     [:h1 "Todos"]
                     (for [todo todos]
                       (let [todo-id (get-db-id todo)]
                         ^{:key todo-id}
-                          [todo-view todo-id]))]))})
+                        [todo-view todo-id]))]))})
