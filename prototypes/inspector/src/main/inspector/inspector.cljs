@@ -80,14 +80,15 @@
 
 (defn view-view []
   (let [selected-path! (r/atom [:base])
-        selected-tab! (r/atom :view)
+        selected-tab! (r/atom :events)
         on-select-path #(reset! selected-path! %)]
-    (fn [e frameset expanded?]
+    (fn [e event-selectors-src frameset expanded?]
       (let [view (:view frameset)
             selected-path @selected-path!
             selected-tab @selected-tab!
             view-selected? (= selected-tab :view)
-            example-selected? (= selected-tab :example)]
+            example-selected? (= selected-tab :example)
+            events-selected? (= selected-tab :events)]
         [:div.with-source
          [:div.view-value
           [:div.frame
@@ -112,11 +113,14 @@
                [:button.source-tab {:class    (when view-selected? "is-selected")
                                     :on-click #(reset! selected-tab! :view)} "view"]
                [:button.source-tab {:class    (when example-selected? "is-selected")
-                                    :on-click #(reset! selected-tab! :example)} "example"]]
+                                    :on-click #(reset! selected-tab! :example)} "example"]
+               [:button.source-tab {:class (when events-selected? "is-selected")
+                                    :on-click #(reset! selected-tab! :events)} "events"]]
               [:pre.source-content
                (cond
                  view-selected? (:frame-source frame)
-                 example-selected? (:example-source frame))]]))]))))
+                 example-selected? (:example-source frame)
+                 events-selected? event-selectors-src)]]))]))))
 
 
 (defn state-view [state name state-def]
@@ -178,7 +182,7 @@
      [:td
       (cond
         state? [machine-view value (get-in @db/schema [name :machine]) expanded?]
-        frameset? [view-view e value expanded?]
+        frameset? [view-view e (get-in @db/schema [name :evt-selectors-src]) value expanded?]
         :else [:div.attribute-literal-value (pr-str value)])]]))
 
 (defn view [e]
@@ -230,5 +234,5 @@
          ^{:key key}
          [attribute-view entity-id key value (contains? expanded-attributes key)])
 
-       [attribute-view entity-id :view frameset (contains? expanded-attributes :view)]]]]))
+       [attribute-view entity-id (keyword name "view") frameset (contains? expanded-attributes :view)]]]]))
 

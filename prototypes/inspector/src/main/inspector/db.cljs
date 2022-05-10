@@ -14,7 +14,7 @@
 
 (defn add-evt-selector-src! [key src]
   (compiler/eval-expr src #(js/console.log "compiled" key %))
-  (swap! schema #(assoc-in % [key :evt-selector-src] src)))
+  (swap! schema #(assoc-in % [key :evt-selectors-src] src)))
 
 (defn register-machine! [key machine]
   (swap! schema #(assoc-in % [key :machine] machine)))
