@@ -4,7 +4,8 @@
             [statecharts.core :as fsm]
             [inspector.events :as events]
             [inspector.db :as db :refer [conn]]
-            [inspector.helpers :refer [input-value source-block]]))
+            [inspector.helpers :refer [input-value source-block]]
+            [inspector.templates :as templates]))
 
 (def completion-machine
   (fsm/machine
@@ -126,8 +127,11 @@
 
 (def base-frame-source "<div class=\"flex items-center gap-1 p-1\">
   <input #checkbox type=\"checkbox\">
-  <div #description>{description}</div>
+  <div #description>{{description}}</div>
 </div>")
+
+
+(templates/update-template-src :todo/view base-frame-source)
 
 (def base-example-source "{:todo/description \"Some task\"
  :todo/completion  {:_state :pending}
@@ -151,6 +155,8 @@
  :todo/temp-description \"Some task\"
  :todo/completion       {:_state :pending}
  :todo/view-mode        {:_state :editing}}")
+
+
 
 (def frameset
   {:example        {:todo/description "Some task"

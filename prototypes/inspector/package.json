@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "start": "shadow-cljs watch browser bootstrap;",
-    "release": "shadow-cljs release browser bootstrap;"
+    "start": "shadow-cljs watch browser bootstrap test;",
+    "release": "shadow-cljs release browser bootstrap;",
   },
   "private": true,
   "devDependencies": {

@@ -1,16 +1,17 @@
 ;; shadow-cljs configuration
 {:source-paths
- ["src/dev"
-  "src/main"
+ ["src/main"
   "src/test"]
 
  :dependencies
  [[clj-statecharts "0.1.5"]
   [reagent "1.1.1"]
   [posh "0.5.5"]
-  [datascript "1.3.12"]]
+  [datascript "1.3.12"]
+  [hickory "0.7.1"]]
 
- :dev-http {8080 "public"}
+ :dev-http {8080 "public"
+            9090 "test"}
 
  :builds
  {:bootstrap {:target     :bootstrap
@@ -31,9 +32,7 @@
               :asset-path       "/js"
               :compiler-options {:optimizations :simple
                                  :warnings      {:infer false}}
-              :modules          {:base {:init-fn inspector.app/init}}}}
+              :modules          {:base {:init-fn inspector.app/init}}}
 
-
- #_{:app
-  {:target  :browser
-   :modules {:main {:init-fn inspector.app/init}}}}}
+  :test      {:target   :browser-test
+              :test-dir "test"}}}
