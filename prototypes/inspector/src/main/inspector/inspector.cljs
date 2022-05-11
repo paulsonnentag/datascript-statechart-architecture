@@ -186,7 +186,6 @@
   (let [state? (:_state value)
         frameset? (fn? (:view value))
         expandable? (or state? frameset?)]
-
     [:tr.attribute
      {:class     [(when expandable? "is-expandable")
                   (when (and (not frameset?) (not expanded?)) "is-inline")]

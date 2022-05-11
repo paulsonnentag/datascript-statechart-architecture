@@ -17,10 +17,9 @@
   (let [id (js/Math.random)]
     (if @!ready?
       (cljs/eval-str state (str src) nil options cb)
-      (add-watch !ready? id (fn [_ {ready? :val}]
-                              (when ready?
+      (add-watch !ready? id #(when @!ready?
                                 (remove-watch !ready? id)
-                                (cljs/eval-str state (str src) nil options cb)))))))
+                                (cljs/eval-str state (str src) nil options cb))))))
 
 (defn init [cb]
   (bootstrap/init
