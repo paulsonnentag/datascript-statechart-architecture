@@ -8,7 +8,8 @@
   [reagent "1.1.1"]
   [posh "0.5.5"]
   [datascript "1.3.12"]
-  [hickory "0.7.1"]]
+  [hickory "0.7.1"]
+  [pjstadig/humane-test-output "0.11.0"]]
 
  :dev-http {8080 "public"
             9090 "test"}
@@ -35,4 +36,5 @@
               :modules          {:base {:init-fn inspector.app/init}}}
 
   :test      {:target   :browser-test
-              :test-dir "test"}}}
+              :test-dir "test"
+              :runner-ns inspector.test-runner}}}

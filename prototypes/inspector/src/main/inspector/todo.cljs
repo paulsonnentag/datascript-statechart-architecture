@@ -126,20 +126,17 @@
 (events/update-event-selectors-src :todo/view-mode view-mode-evt-selector-src)
 
 (def base-frame-source "<div class=\"flex items-center gap-1 p-1\">
-  <input #checkbox type=\"checkbox\">
-  <div #description>{{description}}</div>
+  <input data-name=\"checkbox\" type=\"checkbox\">
+  <div data-name=\"description\">{description}</div>
 </div>")
-
-
-(templates/update-template-src :todo/view base-frame-source)
 
 (def base-example-source "{:todo/description \"Some task\"
  :todo/completion  {:_state :pending}
  :todo/view-mode   {:_state :viewing}}")
 
 (def done-frame-source "<div class=\"flex items-center gap-1 p-1\">
-  <input #checkbox type=\"checkbox\" checked>
-  <div #description>{description}</div>
+  <input data-name=\"checkbox\" type=\"checkbox\" checked>
+  <div data-name=\"description\">{description}</div>
 </div>")
 
 (def done-example-source "{:todo/description \"Some task\"
@@ -147,16 +144,16 @@
  :todo/view-mode   {:_state :viewing}}")
 
 (def editing-frame-source "<div class=\"flex items-center gap-1 p-1\">
-    <input #checkbox type=\"checkbox\">
-    <input class=\"\" #description-input value={temp-description}></div>
+    <input data-name=\"checkbox\" type=\"checkbox\">
+    <input class=\"\" data-name=\"description-input\" value={temp-description}></div>
 </div>")
+
+(templates/update-template-src :todo/view editing-frame-source)
 
 (def editing-example-source "{:todo/description      \"Some task\"
  :todo/temp-description \"Some task\"
  :todo/completion       {:_state :pending}
  :todo/view-mode        {:_state :editing}}")
-
-
 
 (def frameset
   {:example        {:todo/description "Some task"
