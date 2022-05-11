@@ -13,3 +13,9 @@
 (def conn (.. js/inspector -db -conn))
 
 (def transact! (.. js/posh -reagent -transact_BANG_))
+
+
+(declare ^:dynamic *attr-name*)
+
+(defn on [evt selector cb]
+  (add-selector! *attr-name* evt selector cb))

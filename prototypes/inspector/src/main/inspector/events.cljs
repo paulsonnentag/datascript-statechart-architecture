@@ -3,7 +3,8 @@
             [datascript.core :as d]
             [statecharts.core :as fsm]
             [inspector.db :as db :refer [conn]]
-            [inspector.compiler :as compiler]))
+            [inspector.compiler :as compiler]
+            [inspector.helpers :refer [source-block]]))
 
 (def empty-selector-group (sorted-set-by #(-> % :selector count -)))
 
@@ -44,13 +45,34 @@
          (when (not (false? continue-flag))
            (recur (rest handlers))))))))
 
-(defn update-event-selectors-src [attr src]
-  (clear-selectors! attr)
-  (compiler/eval-src src (fn [{error :error}]
-                           (swap! db/schema
-                                  #(assoc-in % [attr :evt-selectors-src] {:value src
-                                                                          :error error})))))
+(defn with-evt-selector-ctx [attr src]
+  (str
+    (source-block '[
+                    (ns inspector.user
+                      (:require [inspector.api :refer [add-selector!
+                                                       clear-selectors!
+                                                       transact!
+                                                       trigger!
+                                                       pull
+                                                       input-value
+                                                       *attr-name*
+                                                       conn
+                                                       on]]))])
 
+    "(binding [*attr-name* " attr "]"
+
+    src
+
+    ")"))
+
+
+(defn update-event-selectors-src [attr src]
+  (let [wrapped-src (with-evt-selector-ctx attr src)]
+    (clear-selectors! attr)
+    (compiler/eval-src wrapped-src (fn [{error :error}]
+                                     (swap! db/schema
+                                            #(assoc-in % [attr :evt-selectors-src] {:value src
+                                                                                    :error error}))))))
 (defn get-frame
   ([element]
    (get-frame element '()))
