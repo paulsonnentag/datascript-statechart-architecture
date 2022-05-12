@@ -8,3 +8,13 @@
   (->> forms
        (map #(with-out-str (cljs.pprint/pprint %)))
        (clojure.string/join "\n")))
+
+
+(defn pairs [coll1 coll2]
+  (if (> (count coll1) (count coll2))
+    (map vector coll1 (concat coll2 (repeat nil)))
+    (map vector (concat coll1 (repeat nil)) coll2)))
+
+
+(defn with-idx [coll]
+  (map-indexed vector coll))
