@@ -13,8 +13,8 @@
       (if-let [m (.exec binding-re str)]
         (let [idx (.-index m)
               binding-expr (first m)
-              binding-name (-> m last trim)
-              binding {:type :binding :name binding-name}]
+              binding-name (-> m last trim symbol)
+              binding [:template/binding binding-name]]
 
           (recur
             (-> tokens
@@ -32,67 +32,60 @@
               (= (count parsed-value) 1) first))            ; unwrap if value is just a list with one element
     value))
 
+
 (defn parse-attrs-bindings [attrs]
   (into
     (empty attrs)
     (for [[attr value] attrs]
       [attr (parse-attr-bindings value)])))
 
-(defn parse-bindings [fragment]
+
+(defn -parse-bindings* [fragment]
   (if (string? fragment)
     (parse-str-bindings fragment)
-    (let [{:keys [content attrs]} fragment]
-      (cond-> fragment
-              content (assoc :content (->> content (map parse-bindings) flatten))
-              attrs (update :attrs parse-attrs-bindings)))))
+    (let [[type attrs & children] fragment
+          parsed-attrs (parse-attrs-bindings attrs)
+          parsed-content (mapcat -parse-bindings* children)]
+      [(into [type parsed-attrs] parsed-content)])))
+
+(defn parse-bindings [fragment]
+  (first (-parse-bindings* fragment)))
 
 (defn unwrap-body [document]
-  (-> document :content first :content second :content first))
+  (-> document first last (nth 2)))
 
 (defn parse-fragment [src]
-  (-> src h/parse h/as-hickory unwrap-body parse-bindings))
-
-(defn normalize-fragment [{:keys [content] :as fragment}]
-  (if content
-    (let [normalized-content (remove
-             #(and (string? %)
-                   (= (trim %) ""))
-             content)]
-    (assoc fragment :content normalized-content))
-    fragment))
+  (-> src h/parse h/as-hiccup unwrap-body parse-bindings))
 
 (defn update-template-src [attr src]
   (let [fragment (parse-fragment src)]))
 
+(defn get-changeset [base variation]
+  (if (string? base)
+    (if (= base variation) {} {:replace variation})
+    (let [[base-type base-attrs & base-children] base
+          [variation-type variation-attrs & variation-children] variation]
+      (if-not (= base-type variation-type)
+        {:replace variation}
+        (let [[base-only-attrs set-attrs _] (diff base-attrs variation-attrs)
 
-(defn get-changeset [{base-tag   :tag
-                      base-attrs :attrs
-                      base-content :content
-                      :as base}
-                     {variation-tag   :tag
-                      variation-attrs :attrs
-                      variation-content :content
-                      :as             variation}]
-  (if-not (= base-tag variation-tag)
-    {:replace variation}
-    (let [[base-only-attrs set-attrs _] (diff base-attrs variation-attrs)
-          delete-attrs (->> base-only-attrs
-                            keys
-                            (remove #(contains? set-attrs %)))
+              delete-attrs (->> base-only-attrs
+                                keys
+                                (remove #(contains? set-attrs %)))
 
-          content-changesets (when (and base-content variation-content)
-                               (reduce
-                                 (fn [content-changeset [idx [base-child variation-child]]]
-                                   (let [child-changeset (get-changeset base-child variation-child)]
-                                   (if (not-empty child-changeset)
-                                     (assoc content-changeset idx child-changeset)
-                                     content-changeset)))
-                                 {}
-                                 (with-idx (pairs base-content variation-content))))
+              content-changesets (reduce
+                                   (fn [children-changeset [idx [base-child variation-child]]]
+                                     (let [child-changeset (get-changeset base-child variation-child)]
+                                       (if (not-empty child-changeset)
+                                         (assoc children-changeset idx child-changeset)
+                                         children-changeset)))
+                                   {}
+                                   (with-idx (pairs base-children variation-children)))
 
-          content-changesets? (and content-changesets
-                                   (some not-empty content-changesets))]
-      (cond-> {}
-              (not-empty delete-attrs) (assoc :delete-attrs delete-attrs)
-              (not-empty set-attrs) (assoc :set-attrs set-attrs)
-              content-changesets? (assoc :content content-changesets)))))
+              content-changesets? (and content-changesets
+                                       (some not-empty content-changesets))]
+          (cond-> {}
+                  (not-empty delete-attrs) (assoc :delete-attrs delete-attrs)
+                  (not-empty set-attrs) (assoc :set-attrs set-attrs)
+                  content-changesets? (assoc :content content-changesets)))))))
+
