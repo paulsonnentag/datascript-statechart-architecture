@@ -2,7 +2,7 @@
   (:require [clojure.string :refer [trim]]
             [clojure.data :refer [diff]]
             [hickory.core :as h]
-            [inspector.helpers :refer [pairs with-idx]]))
+            [inspector.helpers :refer [pairs dissoc-keys]]))
 
 (def binding-re (js/RegExp. "\\{([^\\}]*)\\}" "g"))
 
@@ -73,19 +73,35 @@
                                 keys
                                 (remove #(contains? set-attrs %)))
 
-              content-changesets (reduce
-                                   (fn [children-changeset [idx [base-child variation-child]]]
-                                     (let [child-changeset (get-changeset base-child variation-child)]
-                                       (if (not-empty child-changeset)
-                                         (assoc children-changeset idx child-changeset)
-                                         children-changeset)))
-                                   {}
-                                   (with-idx (pairs base-children variation-children)))
+              content-changesets (for [[base-child variation-child] (pairs base-children variation-children)]
+                                   (get-changeset base-child variation-child))
 
               content-changesets? (and content-changesets
                                        (some not-empty content-changesets))]
           (cond-> {}
                   (not-empty delete-attrs) (assoc :delete-attrs delete-attrs)
                   (not-empty set-attrs) (assoc :set-attrs set-attrs)
-                  content-changesets? (assoc :content content-changesets)))))))
+                  content-changesets? (assoc :child-changes content-changesets)))))))
+
+(defn apply-changeset [fragment changeset]
+  (cond
+    (contains? changeset :replace)
+    (:replace changeset)
+
+    (not-empty changeset)
+    (let [[type attrs & children] fragment
+          {:keys [delete-attrs set-attrs child-changes]} changeset
+          changed-attrs (cond-> attrs
+                                delete-attrs (dissoc-keys delete-attrs)
+                                set-attrs (merge set-attrs))
+          changed-children (if child-changes
+                             (for [[child-fragment child-changeset] (pairs children child-changes)]
+                               (do
+                                 (print child-fragment child-changeset (apply-changeset child-fragment child-changeset))
+                                 (apply-changeset child-fragment child-changeset)))
+                             children)]
+      (into [type changed-attrs] changed-children))
+
+    :else
+    fragment))
 

@@ -15,6 +15,8 @@
     (map vector coll1 (concat coll2 (repeat nil)))
     (map vector (concat coll1 (repeat nil)) coll2)))
 
+(defn dissoc-keys [map keys]
+  (apply dissoc map keys))
 
 (defn with-idx [coll]
   (map-indexed vector coll))
