@@ -1,5 +1,5 @@
 (ns inspector.templates
-  (:require [clojure.string :refer [trim]]
+  (:require [clojure.string :refer [trim join]]
             [clojure.data :refer [diff]]
             [hickory.core :as h]
             [inspector.helpers :refer [pairs dissoc-keys]]))
@@ -13,7 +13,7 @@
       (if-let [m (.exec binding-re str)]
         (let [idx (.-index m)
               binding-expr (first m)
-              binding-name (-> m last trim symbol)
+              binding-name (-> m last trim keyword)
               binding [:template/binding binding-name]]
 
           (recur
@@ -29,7 +29,8 @@
   (if (string? value)
     (let [parsed-value (parse-str-bindings value)]
       (cond-> parsed-value
-              (= (count parsed-value) 1) first))            ; unwrap if value is just a list with one element
+              (and (= (count parsed-value) 1)
+                   (string? (first parsed-value))) first))             ; unwrap if value is just a string literal without bindings
     value))
 
 
@@ -96,12 +97,39 @@
                                 set-attrs (merge set-attrs))
           changed-children (if child-changes
                              (for [[child-fragment child-changeset] (pairs children child-changes)]
-                               (do
-                                 (print child-fragment child-changeset (apply-changeset child-fragment child-changeset))
-                                 (apply-changeset child-fragment child-changeset)))
+                               (apply-changeset child-fragment child-changeset))
                              children)]
       (into [type changed-attrs] changed-children))
 
     :else
     fragment))
+
+(defn binding? [x]
+  (and (vector? x)
+       (= (first x) :template/binding)))
+
+(defn resolve-attr-bindings [value ctx]
+  (if (vector? value)
+    (->> value
+        (map
+          #(if (binding? %)
+             (let [[_ name] %]
+               (get ctx name))
+             %))
+         (join))
+    value))
+
+(defn resolve-bindings [fragment ctx]
+  (if (or (string? fragment) (nil? fragment))
+    fragment
+    (let [[type attrs & children] fragment]
+      (if (= type :template/binding)
+        (get ctx attrs)
+        (let [resolved-children (for [child children]
+                                  (resolve-bindings child ctx))
+
+              resolved-attrs (into {}
+                                   (for [[name value] attrs]
+                                     [name (resolve-attr-bindings value ctx)]))]
+          (into [type resolved-attrs] resolved-children))))))
 
