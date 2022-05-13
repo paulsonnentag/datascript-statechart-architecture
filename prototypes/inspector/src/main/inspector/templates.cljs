@@ -30,7 +30,7 @@
     (let [parsed-value (parse-str-bindings value)]
       (cond-> parsed-value
               (and (= (count parsed-value) 1)
-                   (string? (first parsed-value))) first))             ; unwrap if value is just a string literal without bindings
+                   (string? (first parsed-value))) first))  ; unwrap if value is just a string literal without bindings
     value))
 
 
@@ -111,11 +111,11 @@
 (defn resolve-attr-bindings [value ctx]
   (if (vector? value)
     (->> value
-        (map
-          #(if (binding? %)
-             (let [[_ name] %]
-               (get ctx name))
-             %))
+         (map
+           #(if (binding? %)
+              (let [[_ name] %]
+                (get ctx name))
+              %))
          (join))
     value))
 
@@ -133,3 +133,18 @@
                                      [name (resolve-attr-bindings value ctx)]))]
           (into [type resolved-attrs] resolved-children))))))
 
+(defn create-frameset
+  ([frameset]
+   (create-frameset frameset nil))
+  ([{frame-src :frame variations :variations :as frameset} base]
+   (let [fragment (parse-fragment frame-src)
+         changeset (when base
+                     (get-changeset base fragment))
+         variation-framesets (when variations
+                               (into {}
+                                     (for [[name variation] variations]
+                                       [name (create-frameset variation fragment)])))]
+     (cond->
+       (assoc frameset :frame {:src frame-src :fragment fragment})
+       changeset (assoc :changeset changeset)
+       variation-framesets (assoc :variations variation-framesets)))))
