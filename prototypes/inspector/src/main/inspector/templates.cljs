@@ -108,29 +108,34 @@
   (and (vector? x)
        (= (first x) :template/binding)))
 
-(defn resolve-attr-bindings [value ctx]
+(defn resolve-attr [attr ctx default-ns]
+  (if (namespace attr)
+    (get ctx attr)
+    (get ctx (keyword default-ns (name attr)))))
+
+(defn resolve-attr-bindings [value ctx default-ns]
   (if (vector? value)
     (->> value
          (map
            #(if (binding? %)
               (let [[_ name] %]
-                (get ctx name))
+                (resolve-attr name ctx default-ns))
               %))
          (join))
     value))
 
-(defn resolve-bindings [fragment ctx]
+(defn resolve-bindings [fragment ctx default-ns]
   (if (or (string? fragment) (nil? fragment))
     fragment
     (let [[type attrs & children] fragment]
       (if (= type :template/binding)
-        (get ctx attrs)
+        (resolve-attr attrs ctx default-ns)
         (let [resolved-children (for [child children]
-                                  (resolve-bindings child ctx))
+                                  (resolve-bindings child ctx default-ns))
 
               resolved-attrs (into {}
                                    (for [[name value] attrs]
-                                     [name (resolve-attr-bindings value ctx)]))]
+                                     [name (resolve-attr-bindings value ctx default-ns)]))]
           (into [type resolved-attrs] resolved-children))))))
 
 (defn create-frameset
@@ -150,13 +155,13 @@
              variation-framesets (assoc :variations variation-framesets)))))
 
 (defn render-frameset
-  ([{base-frame :frame variations :variations} ctx]
+  ([{base-frame :frame variations :variations} ctx default-ns]
    (-> (if variations
-         (render-frameset base-frame variations ctx)
+         (render-frameset base-frame variations ctx 1)
          base-frame)
-       (resolve-bindings ctx)))
+       (resolve-bindings ctx default-ns)))
 
-  ([base-fragment variations ctx]
+  ([base-fragment variations ctx foo]
    (reduce
      (fn [fragment [_ {:keys [condition changeset] :as whole}]]
        (let [result (if (condition ctx)
