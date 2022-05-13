@@ -136,15 +136,33 @@
 (defn create-frameset
   ([frameset]
    (create-frameset frameset nil))
-  ([{frame-src :frame variations :variations :as frameset} base]
-   (let [fragment (parse-fragment frame-src)
+
+  ([{:keys [frame-src variations] :as frameset} base]
+   (let [frame (parse-fragment frame-src)
          changeset (when base
-                     (get-changeset base fragment))
+                     (get-changeset base frame))
          variation-framesets (when variations
                                (into {}
                                      (for [[name variation] variations]
-                                       [name (create-frameset variation fragment)])))]
-     (cond->
-       (assoc frameset :frame {:src frame-src :fragment fragment})
-       changeset (assoc :changeset changeset)
-       variation-framesets (assoc :variations variation-framesets)))))
+                                       [name (create-frameset variation frame)])))]
+     (cond-> (assoc frameset :frame frame)
+             changeset (assoc :changeset changeset)
+             variation-framesets (assoc :variations variation-framesets)))))
+
+(defn render-frameset
+  ([{base-frame :frame variations :variations} ctx]
+   (-> (if variations
+         (render-frameset base-frame variations ctx)
+         base-frame)
+       (resolve-bindings ctx)))
+
+  ([base-fragment variations ctx]
+   (reduce
+     (fn [fragment [_ {:keys [condition changeset] :as whole}]]
+       (let [result (if (condition ctx)
+                      (apply-changeset fragment changeset)
+                      fragment)]
+         (print "result" whole result fragment changeset (condition ctx))
+         result))
+     base-fragment
+     variations)))
