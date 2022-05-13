@@ -33,19 +33,19 @@
                    (string? (first parsed-value))) first))  ; unwrap if value is just a string literal without bindings
     value))
 
-
 (defn parse-attrs-bindings [attrs]
   (into
     (empty attrs)
     (for [[attr value] attrs]
       [attr (parse-attr-bindings value)])))
 
-
 (defn -parse-bindings* [fragment]
   (if (string? fragment)
     (parse-str-bindings fragment)
     (let [[type attrs & children] fragment
-          parsed-attrs (parse-attrs-bindings attrs)
+          parsed-attrs (cond-> (parse-attrs-bindings attrs)
+                               (and (= type :input)
+                                    (contains? attrs :value)) (assoc :on-change identity)) ; hack: add empty on-change handler to input elements so react doesn't complain
           parsed-content (mapcat -parse-bindings* children)]
       [(into [type parsed-attrs] parsed-content)])))
 
@@ -135,7 +135,10 @@
 
               resolved-attrs (into {}
                                    (for [[name value] attrs]
-                                     [name (resolve-attr-bindings value ctx default-ns)]))]
+                                     [name (if (and (vector? value)
+                                                    (empty? value))
+                                             true
+                                             (resolve-attr-bindings value ctx default-ns))]))]
           (into [type resolved-attrs] resolved-children))))))
 
 (defn create-frameset
@@ -154,20 +157,24 @@
              changeset (assoc :changeset changeset)
              variation-framesets (assoc :variations variation-framesets)))))
 
-(defn render-frameset
-  ([{base-frame :frame variations :variations} ctx default-ns]
-   (-> (if variations
-         (render-frameset base-frame variations ctx 1)
-         base-frame)
-       (resolve-bindings ctx default-ns)))
+(defn add-component-metadata [fragment ctx ns]
+  (update fragment 1 #(assoc % :data-db-id (:db/id ctx) :data-name ns)))
 
-  ([base-fragment variations ctx foo]
-   (reduce
-     (fn [fragment [_ {:keys [condition changeset] :as whole}]]
-       (let [result (if (condition ctx)
-                      (apply-changeset fragment changeset)
-                      fragment)]
-         (print "result" whole result fragment changeset (condition ctx))
-         result))
-     base-fragment
-     variations)))
+(defn apply-variations [base variations ctx]
+  (reduce
+    (fn [fragment [_ {:keys [condition changeset]}]]
+      (if (condition ctx)
+        (apply-changeset fragment changeset)
+        fragment))
+    base
+    variations))
+
+(defn render-frameset
+  ([{:keys [frame variations]} ctx default-ns]
+   (-> frame
+       (cond->
+         variations (apply-variations variations ctx))
+       (resolve-bindings ctx default-ns)
+       (add-component-metadata ctx default-ns))))
+
+

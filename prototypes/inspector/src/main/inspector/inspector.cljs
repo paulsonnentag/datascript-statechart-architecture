@@ -5,7 +5,8 @@
             [statecharts.core :as fsm]
             [inspector.events :as events]
             [inspector.db :as db :refer [conn]]
-            [inspector.helpers :refer [input-value]]))
+            [inspector.helpers :refer [input-value]]
+            [inspector.templates :as templates]))
 
 (events/clear-selectors! :inspector/view)
 
@@ -42,8 +43,8 @@
           new-src (input-value evt)]
       (events/update-event-selectors-src attr new-src))))
 
-(defn frame-view [{:keys [view current name frame selected-path path on-select-path]}]
-  (let [{:keys [variations example condition]} frame
+(defn frame-view [{:keys [current default-ns name frameset selected-path path on-select-path]}]
+  (let [{:keys [variations example condition]} frameset
         active? (or (nil? condition)
                     (condition current))
         in-selected-path? (= name (first selected-path))
@@ -61,16 +62,16 @@
                    (on-select-path path))}
       [:div.frame-name name]
       [:div.frame
-       [view example]]]
+       (templates/render-frameset frameset example default-ns)]]
 
      (when-not (empty? variations)
        [:div.frame-variations
         (for [[name variation] (seq variations)]
           ^{:key name}
-          [frame-view {:view           view
-                       :current        current
+          [frame-view {:current        current
                        :name           name
-                       :frame          variation
+                       :default-ns     default-ns
+                       :frameset       variation
                        :selected-path  child-selected-path
                        :path           (conj path name)
                        :on-select-path on-select-path}])])]))
@@ -95,25 +96,27 @@
   (let [selected-path! (r/atom [:base])
         selected-tab! (r/atom :events)
         on-select-path #(reset! selected-path! %)]
-    (fn [e event-selectors-src frameset expanded?]
+    (fn [default-ns e event-selectors-src frameset expanded?]
       (let [view (:view frameset)
             selected-path @selected-path!
             selected-tab @selected-tab!
             view-selected? (= selected-tab :view)
             example-selected? (= selected-tab :example)
-            events-selected? (= selected-tab :events)]
+            events-selected? (= selected-tab :events)
+            entity @(p/pull conn '[*] e)]
         [:div.with-source
          [:div.view-value
           [:div.frame
-           [view e]]
+           (templates/render-frameset frameset entity default-ns)]
 
           (when expanded?
             [:<>
              [:div.view-value-divider]
              [frame-view {:view           view
-                          :current        e
+                          :current        entity
+                          :default-ns     default-ns
                           :name           :base
-                          :frame          frameset
+                          :frameset       frameset
                           :selected-path  selected-path
                           :path           [:base]
                           :on-select-path on-select-path}]])]
@@ -131,16 +134,16 @@
                                     :on-click #(reset! selected-tab! :events)} "events"]]
               (cond
                 view-selected? [:pre.source-content
-                                (:frame-source frame)]
+                                (:frame-src frame)]
                 example-selected? [:pre.source-content
-                                   (:example-source frame)]
+                                   (:example-src frame)]
                 events-selected? (let [{:keys [error value]} event-selectors-src]
                                    [:<>
                                     [:textarea.source-content
-                                    {:data-name "event-selectors-src"
-                                     :class     (when error "has-errors")
-                                     :value     value
-                                     :on-change #()}]
+                                     {:data-name "event-selectors-src"
+                                      :class     (when error "has-errors")
+                                      :value     value
+                                      :on-change #()}]
                                     [:div.source-error
                                      (str (ex-message (ex-root-cause error)))]]))]))]))))
 
@@ -182,9 +185,9 @@
 (defn full-name [keyword]
   (subs (str keyword) 1))
 
-(defn attribute-view [e name value expanded?]
+(defn attribute-view [default-ns e name value expanded?]
   (let [state? (:_state value)
-        frameset? (fn? (:view value))
+        frameset? (:frame value)
         expandable? (or state? frameset?)]
     [:tr.attribute
      {:class     [(when expandable? "is-expandable")
@@ -203,7 +206,7 @@
      [:td
       (cond
         state? [machine-view value (get-in @db/schema [name :machine]) expanded?]
-        frameset? [view-view e (get-in @db/schema [name :evt-selectors-src]) value expanded?]
+        frameset? [view-view default-ns e (get-in @db/schema [name :evt-selectors-src]) value expanded?]
         :else [:div.attribute-literal-value (pr-str value)])]]))
 
 (defn view [e]
@@ -249,11 +252,11 @@
        (for [attribute attributes]
          (let [value (get entity attribute)]
            ^{:key attribute}
-           [attribute-view entity-id attribute value (contains? expanded-attributes attribute)]))
+           [attribute-view name entity-id attribute value (contains? expanded-attributes attribute)]))
 
        (for [[key value] (seq rest-entity)]
          ^{:key key}
-         [attribute-view entity-id key value (contains? expanded-attributes key)])
+         [attribute-view name entity-id key value (contains? expanded-attributes key)])
 
-       [attribute-view entity-id (keyword name "view") frameset (contains? expanded-attributes :view)]]]]))
+       [attribute-view name entity-id (keyword name "view") frameset (contains? expanded-attributes :view)]]]]))
 

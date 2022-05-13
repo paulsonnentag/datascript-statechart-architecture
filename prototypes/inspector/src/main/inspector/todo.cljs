@@ -1,6 +1,5 @@
 (ns inspector.todo
   (:require [posh.reagent :as p]
-            [datascript.core :as d]
             [statecharts.core :as fsm]
             [inspector.events :as events]
             [inspector.db :as db :refer [conn]]
@@ -74,25 +73,25 @@
 (def view-evt-selector-src
   (source-block
     '[(on :click [:checkbox]
-        (fn [{:keys [todo]}]
-          (trigger! (:db/id todo) :todo/completion :toggle)))
+          (fn [{:keys [todo]}]
+            (trigger! (:db/id todo) :todo/completion :toggle)))
 
-      (on :click [:label]
-        (fn [{:keys [todo]}]
-          (trigger! (:db/id todo) :todo/view-mode :edit)))
+      (on :click [:description]
+          (fn [{:keys [todo]}]
+            (trigger! (:db/id todo) :todo/view-mode :edit)))
 
-      (on :blur [:input]
-        (fn [{:keys [todo]}]
-          (trigger! (:db/id todo) :todo/view-mode :save)))
+      (on :blur [:description-input]
+          (fn [{:keys [todo]}]
+            (trigger! (:db/id todo) :todo/view-mode :save)))
 
-      (on :key-down [:input]
-        (fn [{:keys [todo evt]}]
-          (when (= "Escape" (.-code evt))
-            (trigger! (:db/id todo) :todo/view-mode :cancel))))
+      (on :key-down [:description-input]
+          (fn [{:keys [todo evt]}]
+            (when (= "Escape" (.-code evt))
+              (trigger! (:db/id todo) :todo/view-mode :cancel))))
 
-      (on :change [:input]
-        (fn [{:keys [todo evt]}]
-          (trigger! (:db/id todo) :todo/view-mode :update {:value (input-value evt)})))]))
+      (on :change [:description-input]
+          (fn [{:keys [todo evt]}]
+            (trigger! (:db/id todo) :todo/view-mode :update {:value (input-value evt)})))]))
 
 (events/update-event-selectors-src :todo/view view-evt-selector-src)
 
@@ -101,27 +100,27 @@
 (def view-mode-evt-selector-src
   (source-block
     '[(on :enter [:editing]
-        (fn [{:keys [todo]}]
-          (let [todo-id (:db/id todo)
-                {description :todo/description} (pull @conn [:todo/description] todo-id)]
-            (transact! conn [[:db/add todo-id :todo/temp-description description]]))))
+          (fn [{:keys [todo]}]
+            (let [todo-id (:db/id todo)
+                  {description :todo/description} (pull @conn [:todo/description] todo-id)]
+              (transact! conn [[:db/add todo-id :todo/temp-description description]]))))
 
       (on :save [:editing]
-        (fn [{:keys [todo]}]
-          (let [todo-id (:db/id todo)
-                {temp-description :todo/temp-description} (pull @conn [:todo/temp-description] todo-id)]
-            (transact! conn [[:db/add todo-id :todo/description temp-description]
-                             [:db.fn/retractAttribute todo-id :todo/temp-description]]))))
+          (fn [{:keys [todo]}]
+            (let [todo-id (:db/id todo)
+                  {temp-description :todo/temp-description} (pull @conn [:todo/temp-description] todo-id)]
+              (transact! conn [[:db/add todo-id :todo/description temp-description]
+                               [:db.fn/retractAttribute todo-id :todo/temp-description]]))))
 
       (on :cancel [:editing]
-        (fn [{:keys [todo]}]
-          (let [todo-id (:db/id todo)]
-            (transact! conn [[:db.fn/retractAttribute todo-id :todo/temp-description]]))))
+          (fn [{:keys [todo]}]
+            (let [todo-id (:db/id todo)]
+              (transact! conn [[:db.fn/retractAttribute todo-id :todo/temp-description]]))))
 
       (on :update [:editing]
-        (fn [{:keys [todo evt]}]
-          (let [new-description (:value evt)]
-            (transact! conn [[:db/add (:db/id todo) :todo/temp-description new-description]]))))]))
+          (fn [{:keys [todo evt]}]
+            (let [new-description (:value evt)]
+              (transact! conn [[:db/add (:db/id todo) :todo/temp-description new-description]]))))]))
 
 (events/update-event-selectors-src :todo/view-mode view-mode-evt-selector-src)
 
@@ -145,7 +144,7 @@
 
 (def editing-frame-source "<div class=\"flex items-center gap-1 p-1\">
     <input data-name=\"checkbox\" type=\"checkbox\">
-    <input class=\"\" data-name=\"description-input\" value={temp-description}></div>
+    <input class=\"border border-black p-1\" data-name=\"description-input\" value={temp-description}></div>
 </div>")
 
 (templates/update-template-src :todo/view editing-frame-source)
@@ -156,58 +155,23 @@
  :todo/view-mode        {:_state :editing}}")
 
 (def frameset
-  {:example        {:todo/description "Some task"
-                    :todo/completion  {:_state :pending}
-                    :todo/view-mode   {:_state :viewing}}
-   :frame-source   base-frame-source
-   :example-source base-example-source
-   :variations
-   {:done    {:condition      (fn [e]
-                                (let [{completion :todo/completion} (if (number? e)
-                                                                      @(p/pull conn [:todo/completion] e))]
-                                  (fsm/matches completion :done)))
-              :example        {:todo/description "Some task"
-                               :todo/completion  {:_state :done}
-                               :todo/view-mode   {:_state :viewing}}
-              :example-source done-example-source
-              :frame-source   done-frame-source}
-    :editing {:condition      (fn [e]
-                                (let [{view-mode :todo/view-mode} (if (number? e)
-                                                                    @(p/pull conn [:todo/view-mode] e))]
-                                  (fsm/matches view-mode :editing)))
-              :example        {:todo/description      "Some task"
-                               :todo/temp-description "Some task"
-                               :todo/completion       {:_state :pending}
-                               :todo/view-mode        {:_state :editing}}
-              :example-source editing-example-source
-              :frame-source   editing-frame-source}}
-   :view           (fn [e]
-                     (let [in-frameset? (not (number? e))
-                           {completion       :todo/completion
-                            view-mode        :todo/view-mode
-                            description      :todo/description
-                            temp-description :todo/temp-description} (if in-frameset?
-                                                                       e
-                                                                       @(p/pull conn [:todo/completion
-                                                                                      :todo/view-mode
-                                                                                      :todo/description
-                                                                                      :todo/temp-description] e))
-                           done? (fsm/matches completion :done)
-                           editing? (fsm/matches view-mode :editing)]
-                       [:div.flex.gap-1.items-center.p-1 {:data-db-id e
-                                                          :data-name  "todo"
-                                                          :class      (when done? "is-done")}
-                        [:input {:data-name "checkbox"
-                                 :type      "checkbox"
-                                 :checked   done?
-                                 :on-change (fn [])}]
-                        (if editing?
-                          [:input.border.border-black
-                           {:data-name "input"
-                            :value     temp-description
-                            :onChange  (fn [])
-                            :ref       (fn [element]        ; TODO: handle this through event selectors
-                                         #_(when (and element
-                                                      (not in-frameset?))
-                                             (.focus element)))}]
-                          [:div {:data-name "label"} description])]))})
+  (templates/create-frameset
+    {:example     {:todo/description "Some task"
+                   :todo/completion  {:_state :pending}
+                   :todo/view-mode   {:_state :viewing}}
+     :frame-src   base-frame-source
+     :example-src base-example-source
+     :variations
+     {:done    {:condition   #(fsm/matches (:todo/completion %) :done)
+                :example     {:todo/description "Some task"
+                              :todo/completion  {:_state :done}
+                              :todo/view-mode   {:_state :viewing}}
+                :example-src done-example-source
+                :frame-src   done-frame-source}
+      :editing {:condition   #(fsm/matches (:todo/view-mode %) :editing)
+                :example     {:todo/description      "Some task"
+                              :todo/temp-description "Some task"
+                              :todo/completion       {:_state :pending}
+                              :todo/view-mode        {:_state :editing}}
+                :example-src editing-example-source
+                :frame-src   editing-frame-source}}}))
