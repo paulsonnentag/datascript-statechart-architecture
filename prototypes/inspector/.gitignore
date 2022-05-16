@@ -1,6 +1,6 @@
 .shadow-cljs
 node_modules
 public/js
-test
+/test
 pom.xml
 inspector.iml
