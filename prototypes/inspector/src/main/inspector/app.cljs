@@ -8,7 +8,8 @@
             [inspector.db :as db :refer [conn]]
             [inspector.todo :as todo]
             [inspector.todo-list :as todo-list]
-            [inspector.compiler :as compiler]))
+            [inspector.compiler :as compiler]
+            [inspector.templates :as templates]))
 
 (def todo-inspector-id 1)
 (def todo-1-id 2)
@@ -46,20 +47,40 @@
                    {:db/id           todo-list-id
                     :todo-list/todos [2 3 4]}])
 
+(def default-base-frame-src "<h1 class=\"p-1 text-lg\">hello!</h1>")
+
+(def default-frameset (templates/create-frameset
+                        {:example     {}
+                         :example-src "{}"
+                         :frame-src   default-base-frame-src}))
+
+(defn create-new-component! []
+  (p/transact!
+    conn
+    [{:inspector/name           "new-component"
+      :inspector/selected-index 0
+      :inspector/attributes     []
+      :inspector/frameset       default-frameset
+      :inspector/expanded-attributes #{}}]))
+
 (defn ide []
   (let [components (->> @(p/q '[:find ?e ?name
                                 :where [?e :inspector/name ?name]] conn)
                         (map (fn [[id name]] {:id id :name name})))]
-
     [:div.ide {}
-      [:div.ide-sidebar
-       (for [{:keys [name id]} components]
-         ^{:key id}
-         [:div name])]
-       [:div.ide-main
-        (for [{:keys [name id]} components]
-          ^{:key id}
-          [inspector/view id])]]))
+     [:div.ide-sidebar.p-2.flex.flex-col.gap-2
+      (for [{:keys [name id]} components]
+        ^{:key id}
+        [:div name])
+
+      [:button.bg-gray-200.p-1
+       {:on-click #(create-new-component!)}
+       "new component"]]
+     [:div.ide-main
+
+      (for [{:keys [name id]} components]
+        ^{:key id}
+        [inspector/view id])]]))
 
 (defn app []
   (if @compiler/!ready?

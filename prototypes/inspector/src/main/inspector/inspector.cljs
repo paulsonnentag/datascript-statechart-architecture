@@ -222,9 +222,11 @@
                                                                  :inspector/frameset
                                                                  :inspector/selected-index] e)
 
-        matching-entities @(p/q (into [:find ['?e '...]
-                                       :where] (for [attribute attributes]
-                                                 ['?e attribute '_])) conn)
+        matching-entities (if (not-empty attributes)
+                            @(p/q (into [:find ['?e '...]
+                                         :where] (for [attribute attributes]
+                                                   ['?e attribute '_])) conn)
+                            [])
 
         entity-id (nth matching-entities selected-idx (last matching-entities))
 
@@ -237,6 +239,8 @@
     [:div.inspector {:data-name "inspector" :data-db-id e :data-selected-entity-id entity-id}
      [:div.inspector-header
       [:h1.inspector-title name]
+
+      (str expanded-attributes)
 
       (when (> (count matching-entities) 1)
         [:div.dot-selection {:data-name "dot-selection"}
