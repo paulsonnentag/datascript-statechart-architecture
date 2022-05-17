@@ -1,6 +1,7 @@
 (ns inspector.db
   (:require [datascript.core :as d]
-            [reagent.core :as r]))
+            [reagent.core :as r]
+            [posh.reagent :as p]))
 
 (defonce schema (r/atom {:inspector/name                {}
                          :inspector/selected-index      {}
@@ -19,3 +20,10 @@
   (swap! schema #(assoc-in % [key :machine] machine)))
 
 (def conn (d/create-conn @schema))
+
+(def ^:dynamic *pull*
+  (fn [conn selector eid]
+    @(p/pull conn selector eid)))
+
+(defn pull [conn selector eid]
+  (*pull* conn selector eid))

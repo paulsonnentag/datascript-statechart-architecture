@@ -103,6 +103,8 @@
           (fn [{:keys [todo]}]
             (let [todo-id (:db/id todo)
                   {description :todo/description} (pull @conn [:todo/description] todo-id)]
+
+              (print "enter editing")
               (transact! conn [[:db/add todo-id :todo/temp-description description]]))))
 
       (on :save [:editing]

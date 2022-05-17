@@ -1,7 +1,9 @@
 (ns inspector.templates-test
   (:require [clojure.test :refer [deftest is testing]]
             [statecharts.core :as fsm]
-            [inspector.templates :as templates]))
+            [datascript.core :as d]
+            [inspector.templates :as templates]
+            [inspector.db :as db]))
 
 (def base-frame-src "<div class=\"flex items-center gap-1 p-1\">
   <input data-name=\"checkbox\" type=\"checkbox\">
@@ -254,52 +256,109 @@
            {:test/user "foo"}
            "test"))))
 
+
+
+(def conn (d/create-conn {}))
+
+(d/transact! conn [{:db/id    1
+                    :foo/name "foo"}
+                   {:db/id    2
+                    :bar/name "bar"}
+                   {:inspector/frameset   (templates/create-frameset
+                                            {:example     {:foo/name "baz"}
+                                             :example-src "{:foo/name \"baz\"}"
+                                             :frame-src   "<h1>{name}</h1>"})
+                    :inspector/attributes [:foo/name]
+                    :inspector/name       "foo"}])
+
 (deftest resolve-bindings
-  (testing "without bindings"
-    (is (= [:div {} "Hello world!"]
-           (templates/resolve-bindings
-             [:div {} "Hello world!"]
-             {}
-             "test"))))
+  (binding [db/*pull* (fn [conn selector eid]
+                        (d/pull @conn selector eid))]
 
-  (testing "text binding"
-    (is (= [:div {} "Hello " "world" "!"]
-           (templates/resolve-bindings
-             [:div {} "Hello " [:template/binding :user] "!"]
-             {:test/user "world"}
-             "test"))))
+    (testing "without bindings"
+      (is (= [:div {} "Hello world!"]
+             (templates/resolve-bindings
+               [:div {} "Hello world!"]
+               conn
+               {}
+               "test"))))
+
+    (testing "text binding"
+      (is (= [:div {} "Hello " "world" "!"]
+             (templates/resolve-bindings
+               [:div {} "Hello " [:template/binding :user] "!"]
+               conn
+               {:test/user "world"}
+               "test"))))
 
 
-  (testing "binding with explicit namespace"
-    (is (= [:div {} "Hello" " " "world" "!"]
-           (templates/resolve-bindings
-             [:div {} [:template/binding :other/greeting] " " [:template/binding :user] "!"]
-             {:test/user      "world"
-              :other/greeting "Hello"}
-             "test"))))
+    (testing "binding with explicit namespace"
+      (is (= [:div {} "Hello" " " "world" "!"]
+             (templates/resolve-bindings
+               [:div {} [:template/binding :other/greeting] " " [:template/binding :user] "!"]
+               conn
+               {:test/user      "world"
+                :other/greeting "Hello"}
+               "test"))))
 
-  (testing "nested text binding"
-    (is (= [:div {}
-            [:h1 {} "Hello " "world" "!"]]
-           (templates/resolve-bindings
-             [:div {}
-              [:h1 {} "Hello " [:template/binding :user] "!"]]
-             {:test/user "world"}
-             "test"))))
+    (testing "nested text binding"
+      (is (= [:div {}
+              [:h1 {} "Hello " "world" "!"]]
+             (templates/resolve-bindings
+               [:div {}
+                [:h1 {} "Hello " [:template/binding :user] "!"]]
+               conn
+               {:test/user "world"}
+               "test"))))
 
-  (testing "attr binding"
-    (is (= [:input {:value "foo"}]
-           (templates/resolve-bindings
-             [:input {:value [[:template/binding :value]]}]
-             {:test/value "foo"}
-             "test"))))
 
-  (testing "attr binding mixed"
-    (is (= [:button {:label "Logout foo"}]
-           (templates/resolve-bindings
-             [:button {:label ["Logout " [:template/binding :user]]}]
-             {:test/user "foo"}
-             "test")))))
+    (testing "text binding that refers to list of primitives"
+      (is (= [:div {} [:<> "1" "2" "3"]]
+             (templates/resolve-bindings
+               [:div {}
+                [:template/binding :list]]
+               conn
+               {:test/list [1 2 3]}
+               "test"))))
+
+    (testing "text binding that refers to list of entities"
+      (is (= [:div {}
+              [:<>
+               [:h1 {:data-db-id 1, :data-name "foo"} "foo"]
+               "{:db/id 2, :bar/name \"bar\"}"]]
+             (templates/resolve-bindings
+               [:div {}
+                [:template/binding :list]]
+               conn
+               {:test/list [{:db/id 1} {:db/id 2}]}
+               "test"))))
+
+    (testing "text binding that refers to number"
+      (is (= [:div {} "42"]
+             (templates/resolve-bindings
+               [:div {}
+                [:template/binding :number]]
+               conn
+               {:test/number 42}
+               "test"))))
+
+    (testing "text binding that refers to ")
+
+    (testing "attr binding"
+      (is (= [:input {:value "foo"}]
+             (templates/resolve-bindings
+               [:input {:value [[:template/binding :value]]}]
+               conn
+               {:test/value "foo"}
+               "test"))))
+
+    (testing "attr binding mixed"
+      (is (= [:button {:label "Logout foo"}]
+             (templates/resolve-bindings
+               [:button {:label ["Logout " [:template/binding :user]]}]
+               conn
+               {:test/user "foo"}
+               "test"))))))
 
 (defn done-condition [ctx]
   (fsm/matches (:todo/completion ctx) :done))
@@ -346,6 +405,7 @@
             [:div {:data-name "description"} "Do something"]
             "\n"]
            (templates/render-frameset todo-frameset
+                                      conn
                                       {:todo/description "Do something"
                                        :todo/view-mode   {:_state :viewing}
                                        :todo/completion  {:_state :done}}
@@ -365,6 +425,7 @@
               :value     "Do something else"}]
             nil]
            (templates/render-frameset todo-frameset
+                                      conn
                                       {:todo/temp-description "Do something else"
                                        :todo/description      "Do something"
                                        :todo/view-mode        {:_state :editing}
@@ -386,6 +447,7 @@
               :value     "Do something else"}]
             nil]
            (templates/render-frameset todo-frameset
+                                      conn
                                       {:todo/temp-description "Do something else"
                                        :todo/description      "Do something"
                                        :todo/view-mode        {:_state :editing}

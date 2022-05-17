@@ -2,7 +2,9 @@
   (:require [clojure.string :refer [trim join]]
             [clojure.data :refer [diff]]
             [hickory.core :as h]
-            [inspector.helpers :refer [pairs dissoc-keys]]))
+            [inspector.db :as db :refer [conn]]
+            [inspector.helpers :refer [pairs dissoc-keys]]
+            [datascript.core :as d]))
 
 (def binding-re (js/RegExp. "\\{([^\\}]*)\\}" "g"))
 
@@ -124,14 +126,43 @@
          (join))
     value))
 
-(defn resolve-bindings [fragment ctx default-ns]
+(declare render-frameset)
+
+(defn resolve-entity-view [conn entity]
+  (let [{frameset   :inspector/frameset
+         default-ns :inspector/name}
+        (->> (d/q '[:find [?e ...] :where [?e :inspector/frameset _]] @conn)
+             (d/pull-many @conn '[:inspector/frameset
+                                  :inspector/attributes
+                                  :inspector/name])
+             (filter
+               (fn [{attrs :inspector/attributes}]
+                 (every? #(contains? entity %) attrs)))
+             first)]
+
+    (if frameset
+      (render-frameset frameset conn entity default-ns)
+      (str entity))))
+
+(defn resolve-view [{id :db/id :as value} conn]
+  (cond
+    id (let [attrs (db/pull conn '[*] id)]
+         (resolve-entity-view conn attrs))
+    (sequential? value) (into [:<>]
+                              (for [x value]
+                                (resolve-view x conn)))
+    :else (str value)))
+
+(defn resolve-bindings [fragment conn ctx default-ns]
   (if (or (string? fragment) (nil? fragment))
     fragment
     (let [[type attrs & children] fragment]
       (if (= type :template/binding)
-        (resolve-attr attrs ctx default-ns)
+        (-> (resolve-attr attrs ctx default-ns)
+            (resolve-view conn))
+
         (let [resolved-children (for [child children]
-                                  (resolve-bindings child ctx default-ns))
+                                  (resolve-bindings child conn ctx default-ns))
 
               resolved-attrs (into {}
                                    (for [[name value] attrs]
@@ -170,11 +201,11 @@
     variations))
 
 (defn render-frameset
-  ([{:keys [frame variations]} ctx default-ns]
+  ([{:keys [frame variations]} conn ctx default-ns]
    (-> frame
        (cond->
          variations (apply-variations variations ctx))
-       (resolve-bindings ctx default-ns)
+       (resolve-bindings conn ctx default-ns)
        (add-component-metadata ctx default-ns))))
 
 

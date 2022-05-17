@@ -62,7 +62,7 @@
                    (on-select-path path))}
       [:div.frame-name name]
       [:div.frame
-       (templates/render-frameset frameset example default-ns)]]
+       (templates/render-frameset frameset conn example default-ns)]]
 
      (when-not (empty? variations)
        [:div.frame-variations
@@ -107,7 +107,7 @@
         [:div.with-source
          [:div.view-value
           [:div.frame
-           (templates/render-frameset frameset entity default-ns)]
+           (templates/render-frameset frameset conn entity default-ns)]
 
           (when expanded?
             [:<>
@@ -230,7 +230,9 @@
 
         entity @(p/pull conn '[*] entity-id)
 
-        rest-entity (apply dissoc entity :db/id attributes)]
+        rest-entity (apply dissoc entity :db/id attributes)
+
+        view-attr (keyword name "view")]
 
     [:div.inspector {:data-name "inspector" :data-db-id e :data-selected-entity-id entity-id}
      [:div.inspector-header
@@ -247,8 +249,12 @@
                :class     (when (= idx selected-idx) "is-selected")}])
            matching-entities)])]
 
+
      [:table.attributes
       [:tbody
+
+       [attribute-view name entity-id view-attr frameset (contains? expanded-attributes view-attr)]
+
        (for [attribute attributes]
          (let [value (get entity attribute)]
            ^{:key attribute}
@@ -256,7 +262,5 @@
 
        (for [[key value] (seq rest-entity)]
          ^{:key key}
-         [attribute-view name entity-id key value (contains? expanded-attributes key)])
-
-       [attribute-view name entity-id (keyword name "view") frameset (contains? expanded-attributes :view)]]]]))
+         [attribute-view name entity-id key value (contains? expanded-attributes key)])]]]))
 
