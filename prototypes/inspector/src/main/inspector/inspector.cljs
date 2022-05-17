@@ -5,8 +5,9 @@
             [statecharts.core :as fsm]
             [inspector.events :as events]
             [inspector.db :as db :refer [conn]]
-            [inspector.helpers :refer [input-value]]
-            [inspector.templates :as templates]))
+            [inspector.helpers :refer [input-value with-index]]
+            [inspector.templates :as templates]
+            [inspector.editable-label :as editable-label]))
 
 (events/clear-selectors! :inspector/view)
 
@@ -43,11 +44,12 @@
           new-src (input-value evt)]
       (events/update-event-selectors-src attr new-src))))
 
-
 (defn unique-attribute-name [ns schema]
   (loop [i 0]
-    (let [attribute (str "new-attribute"
-                         (if (= i 0) "" (str "-" i)))]
+    (let [attribute (keyword
+                      ns
+                      (str "new-attribute"
+                           (if (= i 0) "" (str "-" i))))]
       (if (contains? schema attribute)
         (recur (inc i))
         attribute))))
@@ -229,13 +231,25 @@
         frameset? [view-view default-ns e (get-in @db/schema [name :evt-selectors-src]) value expanded?]
         :else [:div.attribute-literal-value (pr-str value)])]]))
 
-(defn attribute-type-picker [name]
-  [:tr.attribute {}
-   [:th
-    [:div.attribute-name
-     name]]
 
-   [:td "<not implemented>"]])
+(defn attribute-type-picker [e ns schema attribute]
+  (let [attribute-name (name attribute)
+        on-change (fn [new-attribute-name]
+                    (let [type (get schema attribute)
+                          new-attribute (keyword ns new-attribute-name)
+                          new-schema (-> schema
+                                         (dissoc attribute)
+                                         (assoc new-attribute type))]
+
+                      (p/transact! conn [[:db/add e :inspector/schema new-schema]])))]
+
+
+    [:tr.attribute {}
+     [:th
+      [:div.attribute-name
+       [editable-label/view attribute-name on-change]]]
+
+     [:td "<not implemented>"]]))
 
 (defn view [e]
   (let [{name                :inspector/name
@@ -278,24 +292,23 @@
       (when (> (count matching-entities) 1)
         [:div.dot-selection {:data-name "dot-selection"}
          (map-indexed
-           (fn [idx entity]
-             ^{:key idx}
+           (fn [index entity]
+             ^{:key index}
              [:button.dot
-              {:data-idx  idx
+              {:data-idx  index
                :data-name "dot"
-               :class     (when (= idx selected-idx) "is-selected")}])
+               :class     (when (= index selected-idx) "is-selected")}])
            matching-entities)])]
 
      [:table.attributes
       [:tbody
        [attribute-view name entity-id view-attr frameset (contains? expanded-attributes view-attr)]
 
-       (for [[attribute type] (seq schema)]
+       (for [[index [attribute type]] (with-index (seq schema))]
          (let [value (get entity attribute)]
-           ^{:key attribute}
            (if (nil? type)
-             [attribute-type-picker attribute]
-             [attribute-view name entity-id attribute value (contains? expanded-attributes attribute)])))
+             ^{:key index} [attribute-type-picker e name schema attribute]
+             ^{:key index} [attribute-view name entity-id attribute value (contains? expanded-attributes attribute)])))
 
        (for [[key value] (seq rest-entity)]
          ^{:key key}

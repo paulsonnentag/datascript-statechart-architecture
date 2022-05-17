@@ -61,7 +61,7 @@
     conn
     [{:inspector/name                "new-component"
       :inspector/selected-index      0
-      :inspector/attributes          []
+      :inspector/schema              {}
       :inspector/frameset            default-frameset
       :inspector/expanded-attributes #{}}]))
 

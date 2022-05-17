@@ -18,5 +18,5 @@
 (defn dissoc-keys [map keys]
   (apply dissoc map keys))
 
-(defn with-idx [coll]
+(defn with-index [coll]
   (map-indexed vector coll))
