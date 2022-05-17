@@ -43,6 +43,26 @@
           new-src (input-value evt)]
       (events/update-event-selectors-src attr new-src))))
 
+
+(defn unique-attribute-name [ns schema]
+  (loop [i 0]
+    (let [attribute (str "new-attribute"
+                         (if (= i 0) "" (str "-" i)))]
+      (if (contains? schema attribute)
+        (recur (inc i))
+        attribute))))
+
+(events/add-selector!
+  :inspector/view :click [:add-attribute]
+  (fn [{:keys [inspector]}]
+    (let [inspector-id (:db/id inspector)
+          {schema :inspector/schema
+           name   :inspector/name} (d/pull @conn [:inspector/schema
+                                                  :inspector/name] inspector-id)
+          attribute-name (unique-attribute-name name schema)
+          new-schema (assoc schema attribute-name nil)]
+      (p/transact! conn [[:db/add inspector-id :inspector/schema new-schema]]))))
+
 (defn frame-view [{:keys [current default-ns name frameset selected-path path on-select-path]}]
   (let [{:keys [variations example condition]} frameset
         active? (or (nil? condition)
@@ -209,24 +229,39 @@
         frameset? [view-view default-ns e (get-in @db/schema [name :evt-selectors-src]) value expanded?]
         :else [:div.attribute-literal-value (pr-str value)])]]))
 
+(defn attribute-type-picker [name]
+  [:tr.attribute {}
+   [:th
+    [:div.attribute-name
+     name]]
+
+   [:td "<not implemented>"]])
+
 (defn view [e]
   (let [{name                :inspector/name
          selected-idx        :inspector/selected-index
          frameset            :inspector/frameset
-         attributes          :inspector/attributes
+         schema              :inspector/schema
          expanded-attributes :inspector/expanded-attributes} @(p/pull
                                                                 conn
                                                                 [:inspector/name
-                                                                 :inspector/attributes
+                                                                 :inspector/schema
                                                                  :inspector/expanded-attributes
                                                                  :inspector/frameset
                                                                  :inspector/selected-index] e)
+
+        attributes (->> schema
+                        (remove (fn [[_ type]]
+                                  (nil? type)))
+                        (map first))
 
         matching-entities (if (not-empty attributes)
                             @(p/q (into [:find ['?e '...]
                                          :where] (for [attribute attributes]
                                                    ['?e attribute '_])) conn)
                             [])
+
+
 
         entity-id (nth matching-entities selected-idx (last matching-entities))
 
@@ -240,8 +275,6 @@
      [:div.inspector-header
       [:h1.inspector-title name]
 
-      (str expanded-attributes)
-
       (when (> (count matching-entities) 1)
         [:div.dot-selection {:data-name "dot-selection"}
          (map-indexed
@@ -253,18 +286,21 @@
                :class     (when (= idx selected-idx) "is-selected")}])
            matching-entities)])]
 
-
      [:table.attributes
       [:tbody
-
        [attribute-view name entity-id view-attr frameset (contains? expanded-attributes view-attr)]
 
-       (for [attribute attributes]
+       (for [[attribute type] (seq schema)]
          (let [value (get entity attribute)]
            ^{:key attribute}
-           [attribute-view name entity-id attribute value (contains? expanded-attributes attribute)]))
+           (if (nil? type)
+             [attribute-type-picker attribute]
+             [attribute-view name entity-id attribute value (contains? expanded-attributes attribute)])))
 
        (for [[key value] (seq rest-entity)]
          ^{:key key}
-         [attribute-view name entity-id key value (contains? expanded-attributes key)])]]]))
+         [attribute-view name entity-id key value (contains? expanded-attributes key)])]]
+
+
+     [:button.bg-gray-200 {:data-name "add-attribute"} "add attribute"]]))
 

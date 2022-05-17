@@ -23,7 +23,9 @@
 (d/transact! conn [{:db/id                         todo-inspector-id
                     :inspector/name                "todo"
                     :inspector/selected-index      0
-                    :inspector/attributes          [:todo/description :todo/completion :todo/view-mode]
+                    :inspector/schema              {:todo/description :literal
+                                                    :todo/completion  :state
+                                                    :todo/view-mode   :state}
                     :inspector/frameset            todo/frameset
                     :inspector/expanded-attributes #{:todo/completion :view}}
                    {:db/id            todo-1-id
@@ -41,7 +43,7 @@
                    {:db/id                         todo-list-inspector-id
                     :inspector/name                "todo-list"
                     :inspector/selected-index      0
-                    :inspector/attributes          [:todo-list/todos]
+                    :inspector/schema              {:todo-list/todos :literal}
                     :inspector/frameset            todo-list/frameset
                     :inspector/expanded-attributes #{}}
                    {:db/id           todo-list-id
@@ -57,10 +59,10 @@
 (defn create-new-component! []
   (p/transact!
     conn
-    [{:inspector/name           "new-component"
-      :inspector/selected-index 0
-      :inspector/attributes     []
-      :inspector/frameset       default-frameset
+    [{:inspector/name                "new-component"
+      :inspector/selected-index      0
+      :inspector/attributes          []
+      :inspector/frameset            default-frameset
       :inspector/expanded-attributes #{}}]))
 
 (defn ide []
@@ -76,7 +78,7 @@
       [:button.bg-gray-200.p-1
        {:on-click #(create-new-component!)}
        "new component"]]
-     [:div.ide-main
+     [:div.flex.flex-col.gap-4.p-2.w-full
 
       (for [{:keys [name id]} components]
         ^{:key id}
