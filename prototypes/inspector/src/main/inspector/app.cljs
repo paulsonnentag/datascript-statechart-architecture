@@ -46,14 +46,28 @@
                    {:db/id           todo-list-id
                     :todo-list/todos [2 3 4]}])
 
+(defn ide []
+  (let [components (->> @(p/q '[:find ?e ?name
+                                :where [?e :inspector/name ?name]] conn)
+                        (map (fn [[id name]] {:id id :name name})))]
+
+    [:div.ide {}
+      [:div.ide-sidebar
+       (for [{:keys [name id]} components]
+         ^{:key id}
+         [:div name])]
+       [:div.ide-main
+        (for [{:keys [name id]} components]
+          ^{:key id}
+          [inspector/view id])]]))
+
 (defn app []
   (if @compiler/!ready?
-    [:div {:on-click    #(events/dispatch-dom-evt! :click %)
-           :on-blur     #(events/dispatch-dom-evt! :blur %)
-           :on-key-down #(events/dispatch-dom-evt! :key-down %)
-           :on-change   #(events/dispatch-dom-evt! :change %)}
-     [inspector/view todo-list-inspector-id]
-     [inspector/view todo-inspector-id]]
+    [:div.root {:on-click    #(events/dispatch-dom-evt! :click %)
+                :on-blur     #(events/dispatch-dom-evt! :blur %)
+                :on-key-down #(events/dispatch-dom-evt! :key-down %)
+                :on-change   #(events/dispatch-dom-evt! :change %)}
+     [ide]]
     [:div.p-3 "loading ..."]))
 
 (defn render []
