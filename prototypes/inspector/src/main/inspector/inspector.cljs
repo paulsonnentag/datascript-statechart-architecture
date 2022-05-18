@@ -70,12 +70,11 @@
   (let [{:keys [variations example condition]} frameset
         active? (or (nil? condition)
                     (condition current))
-        in-selected-path? (= name (first selected-path))
-        child-selected-path (if in-selected-path?
-                              (rest selected-path)
-                              [])
-        selected? (and in-selected-path?
-                       (= (count selected-path) 1))]
+
+        selected? (and (empty? selected-path)
+                       (sequential? selected-path))
+
+        selected-child (first selected-path)]
     [:div.frame-group
      [:div.frame-variation
       {:class    [(when active? "is-active")
@@ -95,33 +94,43 @@
                        :name           name
                        :default-ns     default-ns
                        :frameset       variation
-                       :selected-path  child-selected-path
+                       :selected-path  (if (= name selected-child)
+                                         (rest selected-path)
+                                         nil)
                        :path           (conj path name)
                        :on-select-path on-select-path}])])]))
 
 (defn lookup-path [frameset path]
-  (if (or (empty? path)
-          (not= (first path) :base))
-    nil
-    (loop [frameset frameset
-           subpath (rest path)]
-      (if (empty? subpath)
-        frameset
-        (recur (get-in frameset [:variations (first subpath)])
-               (rest subpath))))))
+  (if (empty? path)
+    frameset
+    (lookup-path
+      (get-in frameset [:variations (first path)])
+      (rest path))))
+
+(defn update-in-path [frameset path fn]
+  (if (empty? path)
+    (fn frameset)
+  (let [[name & rest] path]
+    (update-in frameset [:variations name] #(update-in-path % rest fn)))))
+
 
 (defn view-view []
-  (let [selected-path! (r/atom [:base])
-        selected-tab! (r/atom :events)
+  (let [selected-path! (r/atom [])
+        selected-tab! (r/atom :view)
         on-select-path #(reset! selected-path! %)]
-    (fn [default-ns e event-selectors-src frameset expanded?]
-      (let [view (:view frameset)
-            selected-path @selected-path!
+    (fn [inspector-id default-ns e event-selectors-src frameset expanded?]
+      (let [selected-path @selected-path!
             selected-tab @selected-tab!
             view-selected? (= selected-tab :view)
             example-selected? (= selected-tab :example)
             events-selected? (= selected-tab :events)
-            entity @(p/pull conn '[*] e)]
+            entity @(p/pull conn '[*] e)
+            on-change-view-source (fn [source]
+                                    (let [new-frameset (-> frameset
+                                                           (update-in-path selected-path #(assoc % :frame-src source))
+                                                           (templates/create-frameset))]
+
+                                      (p/transact! conn [[:db/add inspector-id :inspector/frameset new-frameset]])))]
         [:div.with-source
          [:div.view-value
           [:div.frame
@@ -130,17 +139,16 @@
           (when expanded?
             [:<>
              [:div.view-value-divider]
-             [frame-view {:view           view
-                          :current        entity
+             [frame-view {:current        entity
                           :default-ns     default-ns
                           :name           :base
                           :frameset       frameset
                           :selected-path  selected-path
-                          :path           [:base]
+                          :path           []
                           :on-select-path on-select-path}]])]
 
          (when (and expanded?
-                    (not (empty? selected-path)))
+                    (not (nil? selected-path)))
            (let [frame (lookup-path frameset selected-path)]
              [:div.source
               [:div.source-tabs
@@ -151,8 +159,10 @@
                [:button.source-tab {:class    (when events-selected? "is-selected")
                                     :on-click #(reset! selected-tab! :events)} "events"]]
               (cond
-                view-selected? [:pre.source-content
-                                (:frame-src frame)]
+                view-selected? [:textarea.source-content
+                                {:data-name "view-src"
+                                 :value     (:frame-src frame)
+                                 :on-change #(on-change-view-source (input-value %))}]
                 example-selected? [:pre.source-content
                                    (:example-src frame)]
                 events-selected? (let [{:keys [error value]} event-selectors-src]
@@ -243,7 +253,7 @@
 
             [:div {:on-click on-click} (pr-str value)]))))))
 
-(defn attribute-view [default-ns e name value expanded?]
+(defn attribute-view [inspector-id default-ns e name value expanded?]
   (let [state? (:_state value)
         frameset? (:frame value)
         expandable? (or state? frameset?)]
@@ -264,7 +274,7 @@
      [:td
       (cond
         state? [machine-view value (get-in @db/schema [name :machine]) expanded?]
-        frameset? [view-view default-ns e (get-in @db/schema [name :evt-selectors-src]) value expanded?]
+        frameset? [view-view inspector-id default-ns e (get-in @db/schema [name :evt-selectors-src]) value expanded?]
         :else [attribute-literal-input e name value])]]))
 
 
@@ -349,17 +359,17 @@
 
      [:table.attributes
       [:tbody
-       [attribute-view name entity-id view-attr frameset (contains? expanded-attributes view-attr)]
+       [attribute-view e name entity-id view-attr frameset (contains? expanded-attributes view-attr)]
 
        (for [[index [attribute type]] (with-index (seq schema))]
          (let [value (get entity attribute)]
            (if (nil? type)
              ^{:key index} [attribute-type-picker e name schema attribute]
-             ^{:key index} [attribute-view name entity-id attribute value (contains? expanded-attributes attribute)])))
+             ^{:key index} [attribute-view e name entity-id attribute value (contains? expanded-attributes attribute)])))
 
        (for [[key value] (seq rest-entity)]
          ^{:key key}
-         [attribute-view name entity-id key value (contains? expanded-attributes key)])]]
+         [attribute-view e name entity-id key value (contains? expanded-attributes key)])]]
 
 
      [:button.bg-gray-200 {:data-name "add-attribute"} "add attribute"]]))
