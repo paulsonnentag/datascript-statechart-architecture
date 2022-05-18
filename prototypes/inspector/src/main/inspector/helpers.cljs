@@ -20,3 +20,8 @@
 
 (defn with-index [coll]
   (map-indexed vector coll))
+
+(defn ex-root-cause [ex]
+  (if-let [cause-ex (ex-cause ex)]
+    (ex-root-cause cause-ex)
+    ex))

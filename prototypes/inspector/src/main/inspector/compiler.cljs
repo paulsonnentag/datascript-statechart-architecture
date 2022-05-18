@@ -13,13 +13,16 @@
 
 (defonce !ready? (atom false))
 
-(defn eval-src [src cb]
+(defn eval-src
+  ([src cb]
+   (eval-src src :statement cb))
+  ([src context cb]
   (let [id (js/Math.random)]
     (if @!ready?
-      (cljs/eval-str state (str src) nil options cb)
+      (cljs/eval-str state (str src) nil (assoc options :context context) cb)
       (add-watch !ready? id #(when @!ready?
                                 (remove-watch !ready? id)
-                                (cljs/eval-str state (str src) nil options cb))))))
+                                (cljs/eval-str state (str src) nil options cb)))))))
 
 (defn init [cb]
   (bootstrap/init

@@ -4,8 +4,9 @@
             [datascript.core :as d]
             [statecharts.core :as fsm]
             [inspector.events :as events]
+            [inspector.compiler :as compiler]
             [inspector.db :as db :refer [conn]]
-            [inspector.helpers :refer [input-value with-index]]
+            [inspector.helpers :refer [input-value with-index ex-root-cause]]
             [inspector.templates :as templates]
             [inspector.editable-label :as editable-label]))
 
@@ -109,11 +110,6 @@
         (recur (get-in frameset [:variations (first subpath)])
                (rest subpath))))))
 
-(defn ex-root-cause [ex]
-  (if-let [cause-ex (ex-cause ex)]
-    (ex-root-cause cause-ex)
-    ex))
-
 (defn view-view []
   (let [selected-path! (r/atom [:base])
         selected-tab! (r/atom :events)
@@ -207,6 +203,46 @@
 (defn full-name [keyword]
   (subs (str keyword) 1))
 
+(defn attribute-literal-input []
+  (let [!source (r/atom nil)
+        !result (r/atom nil)]
+    (fn [e attr value]
+      (let [on-change-input (fn [evt]
+                              (let [new-source (input-value evt)]
+                                (reset! !source new-source)
+                                (compiler/eval-src
+                                  new-source
+                                  :expr
+                                  (fn [result]
+                                    (reset! !result result)))))
+            on-blur #(let [{error     :error
+                            new-value :value} @!result]
+                       (when-not error
+                         (when-not (and (nil? e) (nil? new-value))
+                           (p/transact! conn [(cond
+                                                (nil? e) (assoc {} attr new-value)
+                                                (nil? new-value) [:db.fn/retractAttribute e attr]
+                                                :else [:db/add e attr new-value])]))
+                         (reset! !source nil)
+                         (reset! !result nil)))
+
+            on-click #(let [source (pr-str value)]
+                        (reset!
+                          !source
+                          (if (= source "nil") "" source)))]
+        (let [source @!source
+              error? (-> @!result :error)]
+          (if source
+            [:div
+             [:input {:ref       #(when % (.focus %))
+                      :class     (when error? "bg-red-200")
+                      :value     source
+                      :on-change on-change-input
+                      :on-blur   on-blur}]]
+
+
+            [:div {:on-click on-click} (pr-str value)]))))))
+
 (defn attribute-view [default-ns e name value expanded?]
   (let [state? (:_state value)
         frameset? (:frame value)
@@ -229,27 +265,34 @@
       (cond
         state? [machine-view value (get-in @db/schema [name :machine]) expanded?]
         frameset? [view-view default-ns e (get-in @db/schema [name :evt-selectors-src]) value expanded?]
-        :else [:div.attribute-literal-value (pr-str value)])]]))
+        :else [attribute-literal-input e name value])]]))
 
 
 (defn attribute-type-picker [e ns schema attribute]
   (let [attribute-name (name attribute)
-        on-change (fn [new-attribute-name]
-                    (let [type (get schema attribute)
-                          new-attribute (keyword ns new-attribute-name)
-                          new-schema (-> schema
-                                         (dissoc attribute)
-                                         (assoc new-attribute type))]
+        on-change-attribute-name (fn [new-attribute-name]
+                                   (let [type (get schema attribute)
+                                         new-attribute (keyword ns new-attribute-name)
+                                         new-schema (-> schema
+                                                        (dissoc attribute)
+                                                        (assoc new-attribute type))]
 
-                      (p/transact! conn [[:db/add e :inspector/schema new-schema]])))]
+                                     (p/transact! conn [[:db/add e :inspector/schema new-schema]])))
+
+        on-change-type (fn [evt]
+                         (let [new-type (-> evt input-value keyword)
+                               new-schema (assoc schema attribute new-type)]
+                           (p/transact! conn [[:db/add e :inspector/schema new-schema]])))]
 
 
     [:tr.attribute {}
      [:th
       [:div.attribute-name
-       [editable-label/view attribute-name on-change]]]
+       [editable-label/view attribute-name on-change-attribute-name]]]
 
-     [:td "<not implemented>"]]))
+     [:td [:select {:on-change on-change-type}
+           [:option ""]
+           [:option "literal"]]]]))
 
 (defn view [e]
   (let [{name                :inspector/name
@@ -270,16 +313,20 @@
                         (map first))
 
         matching-entities (if (not-empty attributes)
-                            @(p/q (into [:find ['?e '...]
-                                         :where] (for [attribute attributes]
-                                                   ['?e attribute '_])) conn)
+                            (->> attributes
+                                 (mapcat
+                                   (fn [attribute]
+                                     @(p/q [:find ['?e '...]
+                                            :where ['?e attribute '_]] conn)))
+
+                                 (distinct)
+                                 (sort))
                             [])
-
-
 
         entity-id (nth matching-entities selected-idx (last matching-entities))
 
-        entity @(p/pull conn '[*] entity-id)
+        entity (when entity-id
+                 @(p/pull conn '[*] entity-id))
 
         rest-entity (apply dissoc entity :db/id attributes)
 
