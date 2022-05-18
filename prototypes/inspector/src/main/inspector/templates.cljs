@@ -52,10 +52,13 @@
       [(into [type parsed-attrs] parsed-content)])))
 
 (defn parse-bindings [fragment]
-  (first (-parse-bindings* fragment)))
+  (when-not (nil? fragment)
+    (first (-parse-bindings* fragment))))
 
 (defn unwrap-body [document]
-  (-> document first last (nth 2)))
+  (->> document first last (drop 2) first))
+
+(-> "<h1" h/parse h/as-hiccup unwrap-body)
 
 (defn parse-fragment [src]
   (-> src h/parse h/as-hiccup unwrap-body parse-bindings))
@@ -189,7 +192,8 @@
              variation-framesets (assoc :variations variation-framesets)))))
 
 (defn add-component-metadata [fragment ctx ns]
-  (update fragment 1 #(assoc % :data-db-id (:db/id ctx) :data-name ns)))
+  (when (vector? fragment)
+    (update fragment 1 #(assoc % :data-db-id (:db/id ctx) :data-name ns))))
 
 (defn apply-variations [base variations ctx]
   (reduce

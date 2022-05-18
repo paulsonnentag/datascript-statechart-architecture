@@ -65,6 +65,11 @@
                                           :message "{greeting} {user}!"}))))
 
 (deftest parse-fragment
+
+  (testing "broken"
+    (is (= nil
+           (templates/parse-fragment "<h1"))))
+
   (testing "without bindings"
     (is (= [:h1 {} "Hello world!"]
            (templates/parse-fragment "<h1>Hello world!</h1>"))))
@@ -80,7 +85,7 @@
            (templates/parse-fragment "<input value={name}>"))))
 
 
-  (testing "example: todo done frame"
+  (testing "example: todo base frame"
     (is (= [:div
             {:class "flex items-center gap-1 p-1"}
             "\n  "

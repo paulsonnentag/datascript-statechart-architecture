@@ -253,15 +253,15 @@
 
             [:div {:on-click on-click} (pr-str value)]))))))
 
-(defn attribute-view [inspector-id default-ns e name value expanded?]
+(defn attribute-view [inspector-id default-ns e attr-name value expanded?]
   (let [state? (:_state value)
-        frameset? (:frame value)
+        frameset? (= (name attr-name) "view")
         expandable? (or state? frameset?)]
     [:tr.attribute
      {:class     [(when expandable? "is-expandable")
                   (when (and (not frameset?) (not expanded?)) "is-inline")]
       :data-name "attribute"
-      :data-attr (full-name name)}
+      :data-attr (full-name attr-name)}
 
      [:th
       [:div.attribute-name
@@ -269,13 +269,13 @@
          [:button.attribute-expand-button
           {:class     (when expanded? "is-expanded")
            :data-name "expand-button"}])
-       name]]
+       attr-name]]
 
      [:td
       (cond
-        state? [machine-view value (get-in @db/schema [name :machine]) expanded?]
-        frameset? [view-view inspector-id default-ns e (get-in @db/schema [name :evt-selectors-src]) value expanded?]
-        :else [attribute-literal-input e name value])]]))
+        state? [machine-view value (get-in @db/schema [attr-name :machine]) expanded?]
+        frameset? [view-view inspector-id default-ns e (get-in @db/schema [attr-name :evt-selectors-src]) value expanded?]
+        :else [attribute-literal-input e attr-name value])]]))
 
 
 (defn attribute-type-picker [e ns schema attribute]
