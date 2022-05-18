@@ -4,6 +4,7 @@
             [statecharts.core :as fsm]
             [inspector.db :as db :refer [conn]]
             [inspector.compiler :as compiler]
+            [inspector.api :as api]
             [inspector.helpers :refer [source-block]]))
 
 (def empty-selector-group (sorted-set-by #(-> % :selector count -)))
@@ -23,27 +24,29 @@
 
 (defn dispatch!
   ([evt attr frame base-ctx]
-   (loop [handlers (-> @selector-groups! (get attr))]
-     (when-let [handler (first handlers)]
-       (let [{:keys [cb selector] handler-evt :evt} handler
-             continue-flag (when (= handler-evt evt)
-                             (loop [ctx base-ctx
-                                    frame frame
-                                    selector selector]
-                               (let [name (last selector)]
-                                 (if name
-                                   (let [node (last frame)]
-                                     (when node
-                                       (if (= (:name node) name)
-                                         (recur (assoc ctx name node)
-                                                (drop-last frame)
-                                                (drop-last selector))
-                                         (recur ctx
-                                                (drop-last frame)
-                                                selector))))
-                                   (cb ctx)))))]
-         (when (not (false? continue-flag))
-           (recur (rest handlers))))))))
+   (binding [api/*attr-name* attr
+             api/*component-name* (namespace attr)]
+     (loop [handlers (-> @selector-groups! (get attr))]
+       (when-let [handler (first handlers)]
+         (let [{:keys [cb selector] handler-evt :evt} handler
+               continue-flag (when (= handler-evt evt)
+                               (loop [ctx base-ctx
+                                      frame frame
+                                      selector selector]
+                                 (let [name (last selector)]
+                                   (if name
+                                     (let [node (last frame)]
+                                       (when node
+                                         (if (= (:name node) name)
+                                           (recur (assoc ctx name node)
+                                                  (drop-last frame)
+                                                  (drop-last selector))
+                                           (recur ctx
+                                                  (drop-last frame)
+                                                  selector))))
+                                     (cb ctx)))))]
+           (when (not (false? continue-flag))
+             (recur (rest handlers)))))))))
 
 (defn with-evt-selector-ctx [attr src]
   (str
@@ -53,13 +56,15 @@
                                                        clear-selectors!
                                                        transact!
                                                        trigger!
+                                                       set-attr!
+                                                       get-attr
                                                        pull
                                                        input-value
                                                        *attr-name*
                                                        conn
                                                        on]]))])
 
-    "(binding [*attr-name* " attr "]"
+    "(binding [*attr-name* " attr " *component-name* " (namespace attr) "]"
 
     src
 

@@ -1,4 +1,4 @@
-(ns inspector.todo-list
+(ns inspector.examples.todo-list
   (:require [inspector.templates :as templates]))
 
 (def base-frame-src "<div class=\"p-3\">

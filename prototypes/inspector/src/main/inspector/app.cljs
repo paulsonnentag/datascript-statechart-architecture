@@ -6,8 +6,9 @@
             [inspector.events :as events]
             [inspector.inspector :as inspector]
             [inspector.db :as db :refer [conn]]
-            [inspector.todo :as todo]
-            [inspector.todo-list :as todo-list]
+            [inspector.examples.todo :as todo]
+            [inspector.examples.todo-list :as todo-list]
+            [inspector.examples.counter :as counter]
             [inspector.compiler :as compiler]
             [inspector.templates :as templates]))
 
@@ -15,8 +16,10 @@
 (def todo-1-id 2)
 (def todo-2-id 3)
 (def todo-3-id 4)
-(def todo-list-inspector-id 5)
-(def todo-list-id 6)
+(def counter-inspector-id 5)
+(def todo-list-inspector-id 6)
+(def todo-list-id 7)
+(def counter-1-id 8)
 
 (p/posh! conn)
 
@@ -40,6 +43,14 @@
                     :todo/description "Do another thing"
                     :todo/completion  {:_state :pending}
                     :todo/view-mode   {:_state :viewing}}
+                   {:db/id counter-1-id
+                    :counter/value 5}
+                   {:db/id                         counter-inspector-id
+                    :inspector/name                "counter"
+                    :inspector/selected-index      0
+                    :inspector/schema              {:counter/value :literal}
+                    :inspector/frameset            counter/frameset
+                    :inspector/expanded-attributes #{}}
                    {:db/id                         todo-list-inspector-id
                     :inspector/name                "todo-list"
                     :inspector/selected-index      0
@@ -49,7 +60,7 @@
                    {:db/id           todo-list-id
                     :todo-list/todos [2 3 4]}])
 
-(def default-base-frame-src "<h1 class=\"p-1 text-lg\">hello!</h1>")
+(def default-base-frame-src "<div class=\"p-1\">hello!</div>")
 
 (def default-frameset (templates/create-frameset
                         {:example     {}

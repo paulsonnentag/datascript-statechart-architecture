@@ -1,4 +1,4 @@
-(ns inspector.todo
+(ns inspector.examples.todo
   (:require [posh.reagent :as p]
             [statecharts.core :as fsm]
             [inspector.events :as events]

@@ -110,8 +110,8 @@
 (defn update-in-path [frameset path fn]
   (if (empty? path)
     (fn frameset)
-  (let [[name & rest] path]
-    (update-in frameset [:variations name] #(update-in-path % rest fn)))))
+    (let [[name & rest] path]
+      (update-in frameset [:variations name] #(update-in-path % rest fn)))))
 
 
 (defn view-view []
@@ -124,6 +124,7 @@
             view-selected? (= selected-tab :view)
             example-selected? (= selected-tab :example)
             events-selected? (= selected-tab :events)
+            has-variations? (:variations frameset)
             entity @(p/pull conn '[*] e)
             on-change-view-source (fn [source]
                                     (let [new-frameset (-> frameset
@@ -136,7 +137,7 @@
           [:div.frame
            (templates/render-frameset frameset conn entity default-ns)]
 
-          (when expanded?
+          (when (and expanded? has-variations?)
             [:<>
              [:div.view-value-divider]
              [frame-view {:current        entity
@@ -154,8 +155,9 @@
               [:div.source-tabs
                [:button.source-tab {:class    (when view-selected? "is-selected")
                                     :on-click #(reset! selected-tab! :view)} "view"]
-               [:button.source-tab {:class    (when example-selected? "is-selected")
-                                    :on-click #(reset! selected-tab! :example)} "example"]
+               (when has-variations?
+                 [:button.source-tab {:class    (when example-selected? "is-selected")
+                                      :on-click #(reset! selected-tab! :example)} "example"])
                [:button.source-tab {:class    (when events-selected? "is-selected")
                                     :on-click #(reset! selected-tab! :events)} "events"]]
               (cond
