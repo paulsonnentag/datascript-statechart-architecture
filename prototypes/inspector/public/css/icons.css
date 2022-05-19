@@ -1,0 +1,38 @@
+.icon {
+    width: 24px;
+    height: 24px;
+    background: #000;
+    mask-position: center;
+    -webkit-mask-position: center;
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;
+}
+
+
+.icon-sm {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-gray {
+  background: rgb(209 213 219);
+}
+
+
+.icon-plus {
+  mask-image: url('../assets/plus.svg');
+  -webkit-mask-image: url('../assets/plus.svg');
+}
+
+.icon-expandable {
+  mask-image: url('../assets/expandable.svg');
+  -webkit-mask-image: url('../assets/expandable.svg');
+  transition: transform ease-in 100ms;
+  transform: rotate(0);
+}
+
+.icon-expandable.is-expanded {
+  transform: rotate(90deg);
+}

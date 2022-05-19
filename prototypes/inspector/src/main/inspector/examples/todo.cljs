@@ -146,7 +146,7 @@
 
 (def editing-frame-source "<div class=\"flex items-center gap-1 p-1\">
     <input data-name=\"checkbox\" type=\"checkbox\">
-    <input class=\"border border-black p-1\" data-name=\"description-input\" value={temp-description}></div>
+    <input class=\"border border-black p-1\" data-name=\"description-input\" value={temp-description}>
 </div>")
 
 (templates/update-template-src :todo/view editing-frame-source)

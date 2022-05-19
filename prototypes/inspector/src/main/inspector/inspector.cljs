@@ -75,19 +75,20 @@
                        (sequential? selected-path))
 
         selected-child (first selected-path)]
-    [:div.frame-group
-     [:div.frame-variation
-      {:class    [(when active? "is-active")
-                  (when selected? "is-selected")]
-       :on-click (fn [evt]
+    [:div.flex.gap-4
+     [:div
+      {:on-click (fn [evt]
                    (.stopPropagation evt)
                    (on-select-path path))}
-      [:div.frame-name name]
-      [:div.frame
+      [:div
+       {:class (if active? "text-blue-500" "text-gray-500")}
+       name]
+      [:div.border.bg-white.shadow-sm.w-fit.child-pointer-events-none
+       {:class (if selected? "border-blue-500")}
        (templates/render-frameset frameset conn example default-ns)]]
 
      (when-not (empty? variations)
-       [:div.frame-variations
+       [:div.flex.flex-col.gap-2
         (for [[name variation] (seq variations)]
           ^{:key name}
           [frame-view {:current        current
@@ -114,9 +115,15 @@
       (update-in frameset [:variations name] #(update-in-path % rest fn)))))
 
 
+(defn tab [{:keys [label selected? on-select]}]
+  [:button.p-1.rounded-md
+   {:class (when selected? "bg-gray-200")
+    :on-click on-select}
+   label])
+
 (defn view-view []
   (let [selected-path! (r/atom [])
-        selected-tab! (r/atom :view)
+        selected-tab! (r/atom :events)
         on-select-path #(reset! selected-path! %)]
     (fn [inspector-id default-ns e event-selectors-src frameset expanded?]
       (let [selected-path @selected-path!
@@ -132,69 +139,68 @@
                                                            (templates/create-frameset))]
 
                                       (p/transact! conn [[:db/add inspector-id :inspector/frameset new-frameset]])))]
-        [:div.with-source
-         [:div.view-value
-          [:div.frame
+        [:div.flex.items-stretch.gap-4
+
+         [:div.flex.flex-col.gap-4
+          {:style {:min-width "100px"} }
+          [:div.border.bg-white.shadow-sm.w-fit
            (templates/render-frameset frameset conn entity default-ns)]
 
           (when (and expanded? has-variations?)
-            [:<>
-             [:div.view-value-divider]
-             [frame-view {:current        entity
-                          :default-ns     default-ns
-                          :name           :base
-                          :frameset       frameset
-                          :selected-path  selected-path
-                          :path           []
-                          :on-select-path on-select-path}]])]
+            [frame-view {:current        entity
+                         :default-ns     default-ns
+                         :name           :base
+                         :frameset       frameset
+                         :selected-path  selected-path
+                         :path           []
+                         :on-select-path on-select-path}])]
 
          (when (and expanded?
-                    (not (nil? selected-path)))
-           (let [frame (lookup-path frameset selected-path)]
-             [:div.source
-              [:div.source-tabs
-               [:button.source-tab {:class    (when view-selected? "is-selected")
-                                    :on-click #(reset! selected-tab! :view)} "view"]
-               (when has-variations?
-                 [:button.source-tab {:class    (when example-selected? "is-selected")
-                                      :on-click #(reset! selected-tab! :example)} "example"])
-               [:button.source-tab {:class    (when events-selected? "is-selected")
-                                    :on-click #(reset! selected-tab! :events)} "events"]]
-              (cond
-                view-selected? [:textarea.source-content
-                                {:data-name "view-src"
-                                 :value     (:frame-src frame)
-                                 :on-change #(on-change-view-source (input-value %))}]
-                example-selected? [:pre.source-content
-                                   (:example-src frame)]
-                events-selected? (let [{:keys [error value]} event-selectors-src]
-                                   [:<>
-                                    [:textarea.source-content
-                                     {:data-name "event-selectors-src"
-                                      :class     (when error "has-errors")
-                                      :value     value
-                                      :on-change #()}]
-                                    [:div.source-error
-                                     (str (ex-message (ex-root-cause error)))]]))]))]))))
+                      (not (nil? selected-path)))
+             (let [frame (lookup-path frameset selected-path)]
+               [:div.flex-1.flex.flex-col.bg-white.shadow.rounded-md
+                {:style {:min-height "500px"}}
+                [:div.flex.gap-1.p-1.pb-0
+                 [tab {:label "view" :selected? view-selected? :on-select #(reset! selected-tab! :view)}]
+                 [tab {:label "example" :selected? example-selected? :on-select #(reset! selected-tab! :example)}]
+                 [tab {:label "events" :selected? events-selected? :on-select #(reset! selected-tab! :events)}]]
+
+                (cond
+                  view-selected? [:textarea.bg-gray-50.border.border-gray-100.m-1.rounded-md.p-2.flex-1
+                                  {:data-name "view-src"
+                                   :value     (:frame-src frame)
+                                   :on-change #(on-change-view-source (input-value %))}]
+                  example-selected? [:pre.bg-gray-50.border.border-gray-100.m-1.rounded-md.p-2.flex-1
+                                     (:example-src frame)]
+                  events-selected? (let [{:keys [error value]} event-selectors-src]
+                                     [:<>
+                                      [:textarea.bg-gray-50.border.m-1.rounded-md.p-2.flex-1
+                                       {:data-name "event-selectors-src"
+                                        :class     (if error "border-red-500" "border-gray-100")
+                                        :value     value
+                                        :on-change #()}]
+                                      [:div.p-1.pt-0.text-red-500
+                                       (str (ex-message (ex-root-cause error)))]]))]))]))))
 
 
 (defn state-view [state name state-def]
   (let [{substate-defs :states
          actions       :on} state-def
         active? (fsm/matches state name)]
-    [:div.state {:class (when (and name active?) "is-active")}
+    [:div.border.shadow.rounded-md.p-2.bg-white.w-fit
+     {:class (if (and active? name) "border-blue-500" "border-gray-200")}
 
      (when name
-       [:div.state-name name])
+       [:div.text-gray-500 name])
 
      (when-not (empty? actions)
-       [:div.state-actions
+       [:div.flex.flex-col.gap-1
         (for [[name [action]] (seq actions)]
           ^{:key name}
-          [:div.action
+          [:div.flex.gap-1
            [:button.action-name
             (if active?
-              {:class "is-active" :data-name "action" :data-action name}
+              {:class "text-blue-500" :data-name "action" :data-action name}
               {:disabled true})
             name]
            (when-let [target (:target action)]
@@ -203,14 +209,14 @@
               [:div.action-target target]])])])
 
      (when-not (empty? substate-defs)
-       [:div.state-substates
+       [:div.flex.gap-2
         (for [[name substate-def] (seq substate-defs)]
           ^{:key name} [state-view state name substate-def])])]))
 
 (defn machine-view [state machine expanded?]
   (if expanded?
     [state-view state nil machine]
-    [:div.state (:_state state)]))
+    [:div.border.border-gray-200.shadow.rounded-md.p-1.bg-white (:_state state)]))
 
 (defn full-name [keyword]
   (subs (str keyword) 1))
@@ -258,22 +264,25 @@
 (defn attribute-view [inspector-id default-ns e attr-name value expanded?]
   (let [state? (:_state value)
         frameset? (= (name attr-name) "view")
-        expandable? (or state? frameset?)]
-    [:tr.attribute
-     {:class     [(when expandable? "is-expandable")
+        expandable? (or state? frameset?)
+        col-view? (or frameset?
+                      (and state? expanded?))]
+    [:div.flex
+     {:class     [(if col-view? "flex-col gap-1" "flex-row items-center gap-2")
                   (when (and (not frameset?) (not expanded?)) "is-inline")]
       :data-name "attribute"
       :data-attr (full-name attr-name)}
 
-     [:th
-      [:div.attribute-name
-       (when expandable?
-         [:button.attribute-expand-button
-          {:class     (when expanded? "is-expanded")
-           :data-name "expand-button"}])
-       attr-name]]
+     [:div.flex.items-center.gap-1.text-gray-500
+      {:class (when-not expandable? "pl-5")}
+      (when expandable?
+        [:button.icon.icon-sm.icon-expandable.icon-gray
+         {:class     (when expanded? "is-expanded")
+          :data-name "expand-button"}])
+      attr-name ":"]
 
-     [:td
+     [:div
+      {:class (when col-view? "pl-5")}
       (cond
         state? [machine-view value (get-in @db/schema [attr-name :machine]) expanded?]
         frameset? [view-view inspector-id default-ns e (get-in @db/schema [attr-name :evt-selectors-src]) value expanded?]
@@ -344,35 +353,39 @@
 
         view-attr (keyword name "view")]
 
-    [:div.inspector {:data-name "inspector" :data-db-id e :data-selected-entity-id entity-id}
-     [:div.inspector-header
-      [:h1.inspector-title name]
+    [:div.bg-gray-100.rounded-md.shadow-sm
+     {:data-name "inspector" :data-db-id e :data-selected-entity-id entity-id}
+     [:div.p-3.flex.items-center.gap-2
+      [:h1.text-xl name]
 
       (when (> (count matching-entities) 1)
-        [:div.dot-selection {:data-name "dot-selection"}
+        [:div.flex.gap-1 {:data-name "dot-selection"}
          (map-indexed
            (fn [index entity]
              ^{:key index}
-             [:button.dot
+             [:button.rounded-full
               {:data-idx  index
+               :style {:width "10px" :height "10px"}
                :data-name "dot"
-               :class     (when (= index selected-idx) "is-selected")}])
+               :class     (if (= index selected-idx) "bg-gray-500" "bg-gray-300")}])
            matching-entities)])]
 
-     [:table.attributes
-      [:tbody
-       [attribute-view e name entity-id view-attr frameset (contains? expanded-attributes view-attr)]
 
-       (for [[index [attribute type]] (with-index (seq schema))]
-         (let [value (get entity attribute)]
-           (if (nil? type)
-             ^{:key index} [attribute-type-picker e name schema attribute]
-             ^{:key index} [attribute-view e name entity-id attribute value (contains? expanded-attributes attribute)])))
+     [:div.p-3.flex.flex-col.gap-2
+      [attribute-view e name entity-id view-attr frameset (contains? expanded-attributes view-attr)]
 
-       (for [[key value] (seq rest-entity)]
-         ^{:key key}
-         [attribute-view e name entity-id key value (contains? expanded-attributes key)])]]
+      (for [[index [attribute type]] (with-index (seq schema))]
+        (let [value (get entity attribute)]
+          (if (nil? type)
+            ^{:key index} [attribute-type-picker e name schema attribute]
+            ^{:key index} [attribute-view e name entity-id attribute value (contains? expanded-attributes attribute)])))
 
+      (for [[key value] (seq rest-entity)]
+        ^{:key key}
+        [attribute-view e name entity-id key value (contains? expanded-attributes key)])
 
-     [:button.bg-gray-200 {:data-name "add-attribute"} "add attribute"]]))
+      [:button.w-min.whitespace-nowrap.gap-1.flex.items-center.text-gray-400
+       {:data-name "add-attribute"
+        :style     {:margin-left "-4px"}}
+       [:div.icon.icon-plus.icon-gray] "new attribute"]]]))
 

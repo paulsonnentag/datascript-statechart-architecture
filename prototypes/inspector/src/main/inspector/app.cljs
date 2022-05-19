@@ -30,7 +30,7 @@
                                                     :todo/completion  :state
                                                     :todo/view-mode   :state}
                     :inspector/frameset            todo/frameset
-                    :inspector/expanded-attributes #{:todo/completion :view}}
+                    :inspector/expanded-attributes #{:todo/completion :todo/view}}
                    {:db/id            todo-1-id
                     :todo/description "Do something"
                     :todo/completion  {:_state :pending}
@@ -43,7 +43,7 @@
                     :todo/description "Do another thing"
                     :todo/completion  {:_state :pending}
                     :todo/view-mode   {:_state :viewing}}
-                   {:db/id counter-1-id
+                   {:db/id         counter-1-id
                     :counter/value 5}
                    {:db/id                         counter-inspector-id
                     :inspector/name                "counter"
@@ -80,16 +80,24 @@
   (let [components (->> @(p/q '[:find ?e ?name
                                 :where [?e :inspector/name ?name]] conn)
                         (map (fn [[id name]] {:id id :name name})))]
-    [:div.ide {}
-     [:div.ide-sidebar.p-2.flex.flex-col.gap-2
-      (for [{:keys [name id]} components]
-        ^{:key id}
-        [:div name])
+    [:div.flex.bg-gray-200.w-screen.h-screen
+     [:div.p-3.flex.flex-col.gap-2
+      {:style {:width "200px"}}
 
-      [:button.bg-gray-200.p-1
-       {:on-click #(create-new-component!)}
-       "new component"]]
-     [:div.flex.flex-col.gap-4.p-2.w-full
+      [:div.text-xl.flex.justify-between
+       "components"
+
+       [:button
+        {:on-click #(create-new-component!)}
+        [:div.icon.icon-plus]]]
+
+      [:div.flex.flex-col.gap-2.p-2
+
+       (for [{:keys [name id]} components]
+         ^{:key id}
+         [:div name])]]
+
+     [:div.flex.flex-col.gap-4.p-4.w-full.overflow-auto
 
       (for [{:keys [name id]} components]
         ^{:key id}
