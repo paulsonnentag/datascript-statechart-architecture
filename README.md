@@ -12,6 +12,6 @@ with Statecharts.
   - Todo application build with Datascript and statecharts
 - ⌨️ [Editor](prototypes/editor)
   - ClojureScript editor with hot swapping
-- 🧐 [Inspector](prototypes/inspector) 
+- 🧐 [Inspector](prototypes/inspector) (WIP)
   - Inspect & edit statecharts and views
   - [Demo](http://datascript-statechart-app.surge.sh/) (Takes a while to load because of bootstrapped ClojureScript)
