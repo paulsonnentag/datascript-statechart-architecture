@@ -136,11 +136,12 @@
          default-ns :inspector/name}
         (->> (d/q '[:find [?e ...] :where [?e :inspector/frameset _]] @conn)
              (d/pull-many @conn '[:inspector/frameset
-                                  :inspector/attributes
+                                  :inspector/schema
                                   :inspector/name])
              (filter
-               (fn [{attrs :inspector/attributes}]
-                 (every? #(contains? entity %) attrs)))
+               (fn [inspector]
+                 (let [attrs (-> inspector :inspector/schema keys)]
+                 (every? #(contains? entity %) attrs))))
              first)]
 
     (if frameset
