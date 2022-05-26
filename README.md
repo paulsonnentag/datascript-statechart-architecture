@@ -14,4 +14,4 @@ with Statecharts.
   - ClojureScript editor with hot swapping
 - 🧐 [Inspector](prototypes/inspector) 
   - Inspect & edit statecharts and views
-  - [Demo](http://datascript-statechart-app.surge.sh/) (Takes a while to load, because of bootstrapped Clojurescript)
+  - [Demo](http://datascript-statechart-app.surge.sh/) (Takes a while to load because of bootstrapped ClojureScript)
