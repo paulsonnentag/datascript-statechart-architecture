@@ -12,53 +12,56 @@
             [inspector.compiler :as compiler]
             [inspector.templates :as templates]))
 
-(def todo-inspector-id 1)
+
+(def counter-1-id 1)
 (def todo-1-id 2)
 (def todo-2-id 3)
 (def todo-3-id 4)
-(def counter-inspector-id 5)
-(def todo-list-inspector-id 6)
-(def todo-list-id 7)
-(def counter-1-id 8)
+(def todo-list-id 5)
+(def counter-inspector-id 6)
+(def todo-inspector-id 7)
+(def todo-list-inspector-id 8)
 
 (p/posh! conn)
 
-(d/transact! conn [{:db/id                         todo-inspector-id
-                    :inspector/name                "todo"
-                    :inspector/selected-index      0
-                    :inspector/schema              {:todo/description :literal
-                                                    :todo/completion  :state
-                                                    :todo/view-mode   :state}
-                    :inspector/frameset            todo/frameset
-                    :inspector/expanded-attributes #{:todo/completion :todo/view}}
-                   {:db/id            todo-1-id
-                    :todo/description "Do something"
-                    :todo/completion  {:_state :pending}
-                    :todo/view-mode   {:_state :viewing}}
-                   {:db/id            todo-2-id
-                    :todo/description "Do something else"
-                    :todo/completion  {:_state :done}
-                    :todo/view-mode   {:_state :viewing}}
-                   {:db/id            todo-3-id
-                    :todo/description "Do another thing"
-                    :todo/completion  {:_state :pending}
-                    :todo/view-mode   {:_state :viewing}}
-                   {:db/id         counter-1-id
-                    :counter/value 5}
-                   {:db/id                         counter-inspector-id
-                    :inspector/name                "counter"
-                    :inspector/selected-index      0
-                    :inspector/schema              {:counter/value :literal}
-                    :inspector/frameset            counter/frameset
-                    :inspector/expanded-attributes #{}}
-                   {:db/id                         todo-list-inspector-id
-                    :inspector/name                "todo-list"
-                    :inspector/selected-index      0
-                    :inspector/schema              {:todo-list/todos :literal}
-                    :inspector/frameset            todo-list/frameset
-                    :inspector/expanded-attributes #{}}
-                   {:db/id           todo-list-id
-                    :todo-list/todos [2 3 4]}])
+(defonce
+  _
+  (d/transact! conn [{:db/id         counter-1-id
+                      :counter/value 5}
+                     {:db/id            todo-1-id
+                      :todo/description "Do something"
+                      :todo/completion  {:_state :pending}
+                      :todo/view-mode   {:_state :viewing}}
+                     {:db/id            todo-2-id
+                      :todo/description "Do something else"
+                      :todo/completion  {:_state :done}
+                      :todo/view-mode   {:_state :viewing}}
+                     {:db/id            todo-3-id
+                      :todo/description "Do another thing"
+                      :todo/completion  {:_state :pending}
+                      :todo/view-mode   {:_state :viewing}}
+                     {:db/id           todo-list-id
+                      :todo-list/todos [todo-1-id todo-2-id todo-3-id]}
+                     {:db/id                         counter-inspector-id
+                      :inspector/name                "counter"
+                      :inspector/selected-index      0
+                      :inspector/schema              {:counter/value :literal}
+                      :inspector/frameset            counter/frameset
+                      :inspector/expanded-attributes #{}}
+                     {:db/id                         todo-inspector-id
+                      :inspector/name                "todo"
+                      :inspector/selected-index      0
+                      :inspector/schema              {:todo/description :literal
+                                                      :todo/completion  :state
+                                                      :todo/view-mode   :state}
+                      :inspector/frameset            todo/frameset
+                      :inspector/expanded-attributes #{:todo/completion :todo/view}}
+                     {:db/id                         todo-list-inspector-id
+                      :inspector/name                "todo-list"
+                      :inspector/selected-index      0
+                      :inspector/schema              {:todo-list/todos :literal}
+                      :inspector/frameset            todo-list/frameset
+                      :inspector/expanded-attributes #{}}]))
 
 (def default-base-frame-src "<div class=\"p-1\">hello!</div>")
 
