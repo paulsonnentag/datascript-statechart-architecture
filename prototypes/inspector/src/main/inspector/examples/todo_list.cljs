@@ -1,5 +1,6 @@
 (ns inspector.examples.todo-list
-  (:require [inspector.templates :as templates]))
+  (:require [inspector.templates :as templates]
+            [inspector.api]))
 
 (def base-frame-src "<div class=\"p-3\">
   <h1>Todos</h1>

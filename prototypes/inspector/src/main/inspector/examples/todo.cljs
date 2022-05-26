@@ -4,7 +4,8 @@
             [inspector.events :as events]
             [inspector.db :as db :refer [conn]]
             [inspector.helpers :refer [input-value source-block]]
-            [inspector.templates :as templates]))
+            [inspector.templates :as templates]
+            [inspector.api]))
 
 (def completion-machine
   (fsm/machine
@@ -101,28 +102,25 @@
   (source-block
     '[(on :enter [:editing]
           (fn [{:keys [todo]}]
-            (let [todo-id (:db/id todo)
-                  {description :todo/description} (pull @conn [:todo/description] todo-id)]
-
-              (print "enter editing")
-              (transact! conn [[:db/add todo-id :todo/temp-description description]]))))
+            (let [description (get-attr todo :description)]
+              (set-attr! todo :todo/temp-description description))))
 
       (on :save [:editing]
           (fn [{:keys [todo]}]
             (let [todo-id (:db/id todo)
-                  {temp-description :todo/temp-description} (pull @conn [:todo/temp-description] todo-id)]
-              (transact! conn [[:db/add todo-id :todo/description temp-description]
-                               [:db.fn/retractAttribute todo-id :todo/temp-description]]))))
+                  temp-description (get-attr todo :temp-description)]
+              (transact! (get-conn) [[:db/add todo-id :todo/description temp-description]
+                                     [:db.fn/retractAttribute todo-id :todo/temp-description]]))))
 
       (on :cancel [:editing]
           (fn [{:keys [todo]}]
             (let [todo-id (:db/id todo)]
-              (transact! conn [[:db.fn/retractAttribute todo-id :todo/temp-description]]))))
+              (transact! (get-conn) [[:db.fn/retractAttribute todo-id :todo/temp-description]]))))
 
       (on :update [:editing]
           (fn [{:keys [todo evt]}]
             (let [new-description (:value evt)]
-              (transact! conn [[:db/add (:db/id todo) :todo/temp-description new-description]]))))]))
+              (transact! (get-conn) [[:db/add (:db/id todo) :todo/temp-description new-description]]))))]))
 
 (events/update-event-selectors-src :todo/view-mode view-mode-evt-selector-src)
 

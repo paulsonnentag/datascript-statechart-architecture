@@ -1,7 +1,8 @@
 (ns inspector.examples.counter
   (:require [inspector.templates :as templates]
             [inspector.events :as events]
-            [inspector.helpers :refer [source-block]]))
+            [inspector.helpers :refer [source-block]]
+            [inspector.api]))
 
 
 ; VIEW-MODE

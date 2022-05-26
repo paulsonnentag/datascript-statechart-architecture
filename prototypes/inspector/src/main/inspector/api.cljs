@@ -1,19 +1,27 @@
 (ns inspector.api)
 
-(def input-value (.. js/inspector -helpers -input-value))
+; hack: to expose functions that cannot be compiled in bootstrapped mode
+; reference them through the global namespace
 
-(def trigger! (.. js/inspector -events -trigger_BANG_))
+(defn input-value [evt]
+  ((.. js/inspector -helpers -input-value) evt))
 
-(def add-selector! (.. js/inspector -events -add_selector_BANG_))
+(defn trigger!
+  ([id attr evt]
+   (trigger! id attr evt nil))
+  ([id attr evt data]
+  ((.. js/inspector -events -trigger_BANG_) id attr evt data)))
 
-(def clear-selectors! (.. js/inspector -events -clear-selectors_BANG_))
+(defn add-selector! [attr evt selector cb]
+  ((.. js/inspector -events -add_selector_BANG_) attr evt selector cb))
 
-(def pull (.. js/datascript -core -pull))
+(defn pull [conn selector id]
+  ((.. js/datascript -core -pull) conn selector id))
 
-(def conn (.. js/inspector -db -conn))
+(defn get-conn []
+  (.. js/inspector -db -conn))
 
 (def transact! (.. js/posh -reagent -transact_BANG_))
-
 
 (declare ^:dynamic *attr-name*)
 (declare ^:dynamic *component-name*)
@@ -28,11 +36,8 @@
 
 (defn get-attr [{id :db/id} attr]
   (let [attr-with-ns (with-ns attr)]
-    (-> (pull @conn [attr-with-ns] id)
+    (-> (pull @(get-conn) [attr-with-ns] id)
         (get attr-with-ns))))
 
 (defn set-attr! [{id :db/id} attr value]
-  (transact! conn [[:db/add id (with-ns attr) value]]))
-
-#_(get-attr {:db/id 8} :counter/value)
-#_(set-attr! {:db/id 8} :counter/value 3)
+  (transact! (get-conn) [[:db/add id (with-ns attr) value]]))

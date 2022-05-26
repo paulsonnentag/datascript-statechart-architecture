@@ -52,16 +52,14 @@
   (str
     (source-block '[
                     (ns inspector.user
-                      (:require [inspector.api :refer [add-selector!
-                                                       clear-selectors!
-                                                       transact!
+                      (:require [inspector.api :refer [transact!
                                                        trigger!
                                                        set-attr!
                                                        get-attr
                                                        pull
                                                        input-value
+                                                       get-conn
                                                        *attr-name*
-                                                       conn
                                                        on]]))])
 
     "(binding [*attr-name* " attr " *component-name* " (namespace attr) "]"
